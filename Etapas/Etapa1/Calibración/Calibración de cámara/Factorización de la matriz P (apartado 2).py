@@ -31,3 +31,7 @@ print(R)
 
 print("\nVector de Traslación t:")
 print(t)
+
+# Guardar la matriz K en un archivo .npy
+np.save('matriz_K.npy', K)
+print("Matriz K guardada correctamente.")
