@@ -27,3 +27,5 @@ K = cargar_matriz_K()
 E = calcular_matriz_essencial(F, K)
 
 print("Matriz Esencial E:\n", E)
+# Guardar la matriz Esencial en un archivo .npy
+np.save('matriz_E.npy', E)
