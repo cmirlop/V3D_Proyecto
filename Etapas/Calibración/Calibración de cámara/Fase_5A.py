@@ -1,17 +1,29 @@
 import numpy as np
 import cv2
+import matplotlib.pyplot as plt
 
 # Cargar la matriz fundamental F desde el archivo exportado
 def cargar_matriz_E():
     return np.load('matriz_E.npy')
 
+# Cargar la matriz fundamental F desde el archivo exportado
+def cargar_matriz_F():
+    return np.load('matriz_F.npy')
+
+def cargar_matriz_K():
+    return np.load('matriz_K.npy')
+
+
+
 #Función que lee las imagenes y las convierte a escala de grises
 def cargar_imagenes():
     # Cargar las imágenes y convertirlas a escala de grises
-    image_left = cv2.imread('data/left.png') 
+    image_left = cv2.imread('data/left.png')
+    image_right = cv2.imread('data/right.png') 
 
     image_left_gray = cv2.cvtColor(image_left, cv2.COLOR_BGR2GRAY)
-    return image_left_gray
+    image_right_gray = cv2.cvtColor(image_right, cv2.COLOR_BGR2GRAY)
+    return image_left_gray, image_right_gray, image_left, image_right
 
 def rectificacion_Esteroscipica_calibrada(E,y1,y2):
 
@@ -19,7 +31,9 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
     U,S,Vt = np.linalg.svd(E)
 
     #Creamos la matriz W
-    W = np.array([0,1,0],[-1,0,0],[0,0,1])
+    W = np.array([[0, 1, 0],
+              [-1, 0, 0],
+              [0, 0, 1]])
 
     #Poses camara
     t_hat = Vt[:, 2] #Ultima columna 
@@ -36,8 +50,8 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
         P2 = np.hstack((pose[0], pose[1].reshape(3,1)))
 
         # Extraemos u y v de los puntos proporcionados
-        u1, v1 = y1
-        u2, v2 = y2
+        u1, v1, _ = y1
+        u2, v2, _ = y2
 
         # Construir la matriz A (4x4)
         A = np.array([
@@ -54,21 +68,27 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
 
         #2.- Compute the same point in the camera 
         # centered coordinate system of the second camera:
-        x_prim = pose[0] @ x + pose[1]
+        print(pose[0])
+        print(x)
+        print(pose[1])
+        x_prim = pose[0] @ x[:3].T + pose[1]
         #3.- Return (R,t) si x3 > y x3'>0
         if x[2] > 0 and x_prim[2] > 0 :
             return pose
 
 
+
+#--- Pasos ---#
 #Leemos imagenes y las convertimos de color a gris
-img_left= cargar_imagenes()
+img_left, img_right, imgI, imgD= cargar_imagenes()
 # Detectar puntos clave y descriptores con SIFT
 sift = cv2.SIFT_create()
 kp_left, des_left = sift.detectAndCompute(img_left, None)
+kp_right, des_right = sift.detectAndCompute(img_right, None)
 
 # Emparejar puntos clave usando BFMatcher
 bf = cv2.BFMatcher()
-matches = bf.knnMatch(des_left, k=2)
+matches = bf.knnMatch(des_left, des_right, k=2)
 
 # Aplicar el filtro de razón de Lowe
 good_matches = []
@@ -78,6 +98,100 @@ for m, n in matches:
 
 # Obtener puntos clave buenos
 pts_left = np.float32([kp_left[m.queryIdx].pt for m in good_matches])
+pts_right = np.float32([kp_right[m.trainIdx].pt for m in good_matches])
 
 E = cargar_matriz_E()
-Rectificacion = rectificacion_Esteroscipica_calibrada(E,pts_left[20],pts_left[30])
+F = cargar_matriz_F()
+pts_left = np.hstack([pts_left, np.ones((pts_left.shape[0], 1))])
+pts_right = np.hstack([pts_right, np.ones((pts_right.shape[0], 1))])
+                     
+Rectificacion = rectificacion_Esteroscipica_calibrada(E,pts_left[20],pts_right[30])
+
+print("Rectificacion")
+print(Rectificacion)
+
+
+K = cargar_matriz_K()
+# Paso 1: eje base r1 normalizado
+r1 = Rectificacion[1] / np.linalg.norm(Rectificacion[1])
+
+# Paso 2: vector vertical del mundo
+ez = np.array([0, 0, 1])
+
+# Paso 3: r2 perpendicular a r1 y ez
+r2 = np.cross(ez, r1)
+r2 = r2 / np.linalg.norm(r2)
+
+# Paso 4: r3 perpendicular a r1 y r2
+r3 = np.cross(r1, r2)
+
+# Paso 5: matriz de rotación común (filas r1, r2, r3)
+R_rect = np.vstack([r1, r2, r3])
+
+# Paso 6: rotaciones para cada cámara
+R1 = R_rect
+R2 = R_rect @ Rectificacion[0]
+
+# Paso 7: homografías
+K_inv = np.linalg.inv(K)
+Hl = K @ R1.T @ K_inv
+Hr = K @ R2.T @ K_inv
+
+print(Hl)
+
+
+print(Hr)
+
+Hl = Hl / Hl[2,2]
+Hr = Hr / Hr[2,2]
+
+'''
+
+
+img_left_rect = cv2.warpPerspective(img_left, Hl, (img_left.shape[1], img_left.shape[0]))
+img_right_rect = cv2.warpPerspective(img_right, Hr, (img_right.shape[1], img_right.shape[0]))
+
+# Crear una imagen combinada
+combined_image = np.hstack((img_left_rect, img_right_rect))
+
+# Visualización mejorada
+plt.figure(figsize=(15, 5))
+plt.imshow(combined_image, cmap='gray')
+plt.show()
+
+'''
+dist1 = np.zeros(5)  # o tu vector de distorsión real
+dist2 = np.zeros(5)
+
+R = Rectificacion[0]  # Rotación relativa (3x3)
+T = Rectificacion[1] # Traslación relativa (3x1)
+
+# Tamaño imagen (ancho, alto)
+img_size = (img_left.shape[1], img_left.shape[0])
+
+# Rectificación estéreo
+R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
+    K, dist1,
+    K, dist2,
+    img_size, R, T,
+    flags=cv2.CALIB_ZERO_DISPARITY,
+    alpha=0
+)
+
+# Calcular homografías para rectificar imágenes
+Hl = K @ R1 @ np.linalg.inv(K)
+Hr = K @ R2 @ np.linalg.inv(K)
+
+print("Homografía para imagen izquierda:\n", Hl)
+print("Homografía para imagen derecha:\n", Hr)
+
+img_left_rect = cv2.warpPerspective(img_left, Hl, (img_left.shape[1], img_left.shape[0]))
+img_right_rect = cv2.warpPerspective(img_right, Hr, (img_right.shape[1], img_right.shape[0]))
+
+# Crear una imagen combinada
+combined_image = np.hstack((img_left_rect, img_right_rect))
+
+# Visualización mejorada
+plt.figure(figsize=(15, 5))
+plt.imshow(combined_image, cmap='gray')
+plt.show()

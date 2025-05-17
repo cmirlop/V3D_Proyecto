@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import random
 
 #Función que lee las imagenes y las convierte a escala de grises
 def cargar_imagenes():
@@ -30,6 +31,17 @@ def calcular_mascara(pts_left, pts_right,F):
 
     return mascara
 
+# Detectar puntos clave y descriptores con SIFT
+def apl_sift(img_left,img_right):
+    sift = cv2.SIFT_create()
+    kp_left, des_left = sift.detectAndCompute(img_left, None)
+    kp_right, des_right = sift.detectAndCompute(img_right, None)
+
+# Emparejar puntos clave usando BFMatcher
+def apl_matcher(des_left, des_right):
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des_left, des_right, k=2)
+
 
 def calcular_fundamental(pts_left, pts_right) : 
     #Añadimos 1 a la 3a columnda para trabajar con coordenadas homogeneas
@@ -42,12 +54,17 @@ def calcular_fundamental(pts_left, pts_right) :
     # Contruimos A
     # A = xix2i, xiy2i xi yix2i yiy2i yi x2i y2i 1
     A = np.empty((0, 9))
-    for pt_izq, pt_dr, val in zip(puntos_izq, puntos_drch, range(0,8)):
+    indices = np.random.choice(len(puntos_izq), size=8, replace=False)
+    muestras_izq = puntos_izq[indices]
+    indices2 = np.random.choice(len(puntos_drch), size=8, replace=False)
+    muestras_drch = puntos_drch[indices2]
+
+    for pt_izq, pt_dr, val in zip(muestras_izq, muestras_drch, range(0,8)):
         x1,y1,_ = pt_dr
         x2,y2,_2 = pt_izq
         fila = np.array([[x1*x2, x1*y2, x1, y1*x2, y1*y2, y1, x2, y2, 1]])
         A = np.vstack([A, fila])  # Apilar filas verticalmente
-        if val == 7:  # El índice va de 0 a 7 para 8 elementos
+        if val == 8:  # El índice va de 0 a 7 para 8 elementos
             break
     
     U1, S1, Vt1 = np.linalg.svd(A)
@@ -61,18 +78,19 @@ def calcular_fundamental(pts_left, pts_right) :
     return f2,inliners,mascara
 
 
+#--- Pasos ---#
 
-#Leemos imagenes y las convertimos de color a gris
+#1.- Leemos imagenes y las convertimos de color a gris
 img_left , img_right = cargar_imagenes()
 
-# Detectar puntos clave y descriptores con SIFT
-sift = cv2.SIFT_create()
-kp_left, des_left = sift.detectAndCompute(img_left, None)
-kp_right, des_right = sift.detectAndCompute(img_right, None)
+#2.- Aplicamos SIFT
+kp_left, des_left,kp_right, des_right = apl_sift(img_left , img_right)
 
-# Emparejar puntos clave usando BFMatcher
-bf = cv2.BFMatcher()
-matches = bf.knnMatch(des_left, des_right, k=2)
+#3.- Aplicamos BFMatcher para emarejar puntos clave
+matches = apl_matcher(des_left, des_right)
+
+
+
 
 # Aplicar el filtro de razón de Lowe
 good_matches = []
@@ -121,3 +139,29 @@ print("Matriz Fundamental:")
 
 # Guardar la matriz fundamental en un archivo .npy
 np.save('matriz_F.npy', f2)
+
+#Dibujar la linea epipolar
+
+
+# Punto en la imagen izquierda
+x = np.array(pts_left[2])     # [45, 70]
+x_homog = np.append(x, 1)  # en coordenadas homogéneas
+
+
+# Calcula la línea epipolar l' = F * x
+l = f2 @ x_homog  # Resultado: [a, b, c] tal que a*x + b*y + c = 0
+
+# Para dibujar la línea: calcula dos puntos extremos (x=0 y x=ancho_imagen)
+a, b, c = l
+h, w = img_right.shape
+pt1 = (0, int(-c / b)) if b != 0 else (0, 0)
+pt2 = (w, int(-(a * w + c) / b)) if b != 0 else (w, 0)
+
+# Dibuja la línea en la imagen derecha
+img_right_line = img_right.copy()
+cv2.line(img_right_line, pt1, pt2, (255, 0, 0), 2)
+
+# Muestra la imagen
+plt.imshow(img_right_line)
+plt.title('Línea epipolar en imagen derecha')
+plt.show()
