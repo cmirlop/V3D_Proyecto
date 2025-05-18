@@ -23,6 +23,20 @@ def factorize_projection_matrix(P):
 # Realizar la factorización de la matriz P
 K, R, t = factorize_projection_matrix(P)
 
+
+t = t.reshape((3, 1))
+
+# Combina R y t en una matriz de 3x4
+Rt = np.hstack((R, t))
+
+# Matriz de proyección
+P2 = K @ Rt
+
+print(P)
+print("sas")
+print(P2)
+
+
 print("Matriz K de parámetros intrínsecos:")
 print(K)
 

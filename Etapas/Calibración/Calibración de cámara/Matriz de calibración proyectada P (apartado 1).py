@@ -3,8 +3,18 @@ import cv2
 import glob
 
 # Configuración del patrón del tablero
-pattern_size = (7, 5)  # Cambia a las dimensiones de tu tablero
-square_size = 31.0 / 1000  # Tamaño real de cada cuadrado en metros (31mm)
+def config_tablero(dim, tamaño):
+    pattern_size = dim  # Cambia a las dimensiones de tu tablero
+    square_size = tamaño / 1000 # Tamaño real de cada cuadrado en metros (31mm)
+    return  pattern_size,square_size 
+
+
+
+#---- Pasos ---#
+
+#1.- Configuramos las dimensiones del tablero, y el tamaño de cada cuadrado
+pattern_size,square_size = config_tablero((7, 5),31.0)
+
 
 # Preparar puntos 3D del tablero de ajedrez
 objp = np.zeros((pattern_size[0] * pattern_size[1], 3), np.float32)
