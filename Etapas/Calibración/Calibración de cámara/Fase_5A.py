@@ -13,6 +13,26 @@ def cargar_matriz_F():
 def cargar_matriz_K():
     return np.load('matriz_K.npy')
 
+# Detectar puntos clave y descriptores con SIFT
+def apl_shift(img_left, img_right):
+    sift = cv2.SIFT_create()
+    kp_left, des_left = sift.detectAndCompute(img_left, None)
+    kp_right, des_right = sift.detectAndCompute(img_right, None)
+    return kp_left,des_left,kp_right,des_right
+
+# Emparejar puntos clave usando BFMatcher
+def apl_matcher(des_left,des_right):
+    bf = cv2.BFMatcher()
+    matches = bf.knnMatch(des_left, des_right, k=2)
+    return matches
+
+# Aplicar el filtro de razón de Lowe
+def filtro_lowe(matches):
+    good_matches = []
+    for m, n in matches:
+        if m.distance < 0.75 * n.distance:
+            good_matches.append(m)
+    return good_matches
 
 
 #Función que lee las imagenes y las convierte a escala de grises
@@ -79,22 +99,18 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
 
 
 #--- Pasos ---#
-#Leemos imagenes y las convertimos de color a gris
+
+#1.-Leemos imagenes y las convertimos de color a gris
 img_left, img_right, imgI, imgD= cargar_imagenes()
-# Detectar puntos clave y descriptores con SIFT
-sift = cv2.SIFT_create()
-kp_left, des_left = sift.detectAndCompute(img_left, None)
-kp_right, des_right = sift.detectAndCompute(img_right, None)
 
-# Emparejar puntos clave usando BFMatcher
-bf = cv2.BFMatcher()
-matches = bf.knnMatch(des_left, des_right, k=2)
+#2.- Detectamos puntos clave y descriptores
+kp_left,des_left,kp_right,des_right = apl_shift(img_left,img_right)
 
-# Aplicar el filtro de razón de Lowe
-good_matches = []
-for m, n in matches:
-    if m.distance < 0.75 * n.distance:
-        good_matches.append(m)
+#3.- Emparejamiento de puntos clave
+matches = apl_matcher(des_left,des_right)
+
+#4.- Aplicamos filtro de Lowe
+good_matches = filtro_lowe(matches)
 
 # Obtener puntos clave buenos
 pts_left = np.float32([kp_left[m.queryIdx].pt for m in good_matches])
