@@ -17,13 +17,17 @@ def calcular_matriz_essencial(F, K):
 
     return E
 
-# Cargar F exportada
+
+
+#--- Pasos --- #
+
+#1.- Cargar F exportada
 F = cargar_matriz_F()
 
-# Cargar la matriz K exportada
+#2.- Cargar la matriz K exportada
 K = cargar_matriz_K()
 
-# Calcular la matriz esencial E
+#3.- Calcular la matriz esencial E
 E = calcular_matriz_essencial(F, K)
 
 print("Matriz Esencial E:\n", E)

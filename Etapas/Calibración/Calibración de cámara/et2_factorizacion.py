@@ -26,25 +26,16 @@ def Factorizazcion_algoritmo_Fusilleo(P):
 
 # Realizar la factorización de la matriz P
 K, R, t = Factorizazcion_algoritmo_Fusilleo(P)
-t = t.reshape((3, 1))
-
-# Combina R y t en una matriz de 3x4
-Rt = np.hstack((R, t))
-
-# Matriz de proyección
-P2 = K @ Rt
-
-print(P)
-print("sas")
-print(P2)
 
 
 print("Matriz K de parámetros intrínsecos:")
-#print(K)
+print(K)
 print("\nMatriz de Rotación R:")
-#print(R)
+print(R)
 
 print("\nVector de Traslación t:")
-#print(t)
+print(t)
 
 np.save('matriz_K.npy', K)
+np.save('matriz_R_et2.npy', R)
+np.save('matriz_t_et2.npy', t)

@@ -26,7 +26,7 @@ object_points = []  # Puntos 3D en el espacio real
 image_points = []   # Puntos 2D en el plano de la imagen
 
 # Cargar las imágenes
-image_paths = glob.glob('data2/my_frame-*.jpg')
+image_paths = glob.glob('data/my_frame-*.jpg')
 images = []
 for path in image_paths:
     img = cv2.imread(path)

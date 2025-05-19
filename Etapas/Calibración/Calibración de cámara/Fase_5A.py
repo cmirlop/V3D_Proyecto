@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import matplotlib.pyplot as plt
+import random
 
 # Cargar la matriz fundamental F desde el archivo exportado
 def cargar_matriz_E():
@@ -33,6 +34,19 @@ def filtro_lowe(matches):
         if m.distance < 0.75 * n.distance:
             good_matches.append(m)
     return good_matches
+
+# Obtener puntos clave buenos
+def obtener_puntos_buenos(kp_left,kp_right,good_matches):
+    pts_left = np.float32([kp_left[m.queryIdx].pt for m in good_matches])
+    pts_right = np.float32([kp_right[m.trainIdx].pt for m in good_matches])
+    return pts_left,pts_right
+
+
+#Convertir en homogeneas
+def conv_homogeneas(pts_left, pts_right):
+    pts_left = np.hstack([pts_left, np.ones((pts_left.shape[0], 1))])
+    pts_right = np.hstack([pts_right, np.ones((pts_right.shape[0], 1))])
+    return pts_left, pts_right
 
 
 #Función que lee las imagenes y las convierte a escala de grises
@@ -84,7 +98,7 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
         # Resolver A X = 0 usando SVD
         _, _, Vt = np.linalg.svd(A)
         x = Vt[-1]
-        x = x / x[3]  # Normalizar homogéneo
+        x = x / x[2]  # Normalizar homogéneo
 
         #2.- Compute the same point in the camera 
         # centered coordinate system of the second camera:
@@ -112,22 +126,34 @@ matches = apl_matcher(des_left,des_right)
 #4.- Aplicamos filtro de Lowe
 good_matches = filtro_lowe(matches)
 
-# Obtener puntos clave buenos
-pts_left = np.float32([kp_left[m.queryIdx].pt for m in good_matches])
-pts_right = np.float32([kp_right[m.trainIdx].pt for m in good_matches])
+#5.- Obtener puntos clave buenos
+pts_left, pts_right = obtener_puntos_buenos(kp_left,kp_right,good_matches)
 
+#6.- Cargar la matriz E en el código
 E = cargar_matriz_E()
-F = cargar_matriz_F()
-pts_left = np.hstack([pts_left, np.ones((pts_left.shape[0], 1))])
-pts_right = np.hstack([pts_right, np.ones((pts_right.shape[0], 1))])
-                     
-Rectificacion = rectificacion_Esteroscipica_calibrada(E,pts_left[20],pts_right[30])
+#F = cargar_matriz_F()
+
+#7.- Convertir en coordenadas homogeneas
+pts_left,pts_right=conv_homogeneas(pts_left, pts_right)
+
+i = np.random.randint(len(pts_left))
+
+#8.- Aplicar el cóigo de Rectificación 
+Rectificacion = rectificacion_Esteroscipica_calibrada(E,pts_left[i],pts_right[i])
 
 print("Rectificacion")
 print(Rectificacion)
 
 
 K = cargar_matriz_K()
+D = np.diag(np.sign(np.diag(K)))
+K = K @ D
+print(img_left.shape)
+print("K")
+print(K)
+print(np.linalg.det(K))
+
+
 # Paso 1: eje base r1 normalizado
 r1 = Rectificacion[1] / np.linalg.norm(Rectificacion[1])
 
@@ -161,11 +187,11 @@ print(Hr)
 Hl = Hl / Hl[2,2]
 Hr = Hr / Hr[2,2]
 
-'''
 
 
-img_left_rect = cv2.warpPerspective(img_left, Hl, (img_left.shape[1], img_left.shape[0]))
-img_right_rect = cv2.warpPerspective(img_right, Hr, (img_right.shape[1], img_right.shape[0]))
+
+img_left_rect = cv2.warpPerspective(imgI, Hl, (img_left.shape[1], img_left.shape[0]))
+img_right_rect = cv2.warpPerspective(imgD, Hr, (img_right.shape[1], img_right.shape[0]))
 
 # Crear una imagen combinada
 combined_image = np.hstack((img_left_rect, img_right_rect))
@@ -211,3 +237,4 @@ combined_image = np.hstack((img_left_rect, img_right_rect))
 plt.figure(figsize=(15, 5))
 plt.imshow(combined_image, cmap='gray')
 plt.show()
+'''
