@@ -156,6 +156,41 @@ print(K)
 print(np.linalg.det(K)) #Debe de dar un valor muy alto
 """
 
+#Pasos pag 363 IREG.pdf
+
+#Cargar F a memoria
+F = cargar_matriz_F()
+
+#Determinal el epiolo eL desde F
+U,S,Vt = np.linalg.svd(F)
+e_L = Vt[-1]
+e_L = e_L / e_L[-1]
+
+#Determinar matriz M 10.42
+Sp = np.array([0,-S[1],0],[-S[0],0,0],[0,0,S[2]])
+M = U@Sp@Vt
+
+#Determinar Ttrans de y0 != de los epipolos ec 20.33
+Ttrans = np.array([1,0,-uo],[0,1,-v0],[0,0,1])
+
+
+
+#Determinar la translacion del epipolo e'L = ttrans @ eL
+
+#Determinar la rotación de Trot desde  e'L ec 20.53
+
+#êl desde aqui obtener Hinf ex 20.37
+
+#Obtener la homografia HL
+
+#Transformar todos los puntos de la imagen tanto iz como der
+
+
+
+
+
+
+
 # 10.- Normalizamos el vector de translacion
 r1 = Rectificacion[1] / np.linalg.norm(Rectificacion[1])
 
