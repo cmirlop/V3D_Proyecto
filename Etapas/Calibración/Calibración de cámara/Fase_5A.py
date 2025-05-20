@@ -98,7 +98,7 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
         # Resolver A X = 0 usando SVD
         _, _, Vt = np.linalg.svd(A)
         x = Vt[-1]
-        x = x / x[2]  # Normalizar homogéneo
+        x = x / x[-1]  # Normalizar homogéneo
 
         #2.- Compute the same point in the camera 
         # centered coordinate system of the second camera:
@@ -107,7 +107,7 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
         print(pose[1])
         x_prim = pose[0] @ x[:3].T + pose[1]
         #3.- Return (R,t) si x3 > y x3'>0
-        if x[2] > 0 and x_prim[2] > 0 :
+        if x[-1] > 0 and x_prim[-1] > 0 : #Comprobamos que la profundidad es positiva
             return pose
 
 
@@ -145,36 +145,38 @@ print("Rectificacion")
 print(Rectificacion)
 
 
+#9.- Correguimos signos negativos de la diagonal
 K = cargar_matriz_K()
+"""
 D = np.diag(np.sign(np.diag(K)))
 K = K @ D
 print(img_left.shape)
 print("K")
 print(K)
-print(np.linalg.det(K))
+print(np.linalg.det(K)) #Debe de dar un valor muy alto
+"""
 
-
-# Paso 1: eje base r1 normalizado
+# 10.- Normalizamos el vector de translacion
 r1 = Rectificacion[1] / np.linalg.norm(Rectificacion[1])
 
-# Paso 2: vector vertical del mundo
+# 11.- Definimos un eje global
 ez = np.array([0, 0, 1])
 
-# Paso 3: r2 perpendicular a r1 y ez
+# 12.- Producto entre el eje y el vector de translacion y lo normalizamos
 r2 = np.cross(ez, r1)
 r2 = r2 / np.linalg.norm(r2)
 
-# Paso 4: r3 perpendicular a r1 y r2
+# 13.- Eje Z rectificado
 r3 = np.cross(r1, r2)
 
-# Paso 5: matriz de rotación común (filas r1, r2, r3)
+# 14.- Matriz de rotación
 R_rect = np.vstack([r1, r2, r3])
 
-# Paso 6: rotaciones para cada cámara
+# 15.- Rotaciones para cada camara, la derecha y la izquierda
 R1 = R_rect
 R2 = R_rect @ Rectificacion[0]
 
-# Paso 7: homografías
+# 16.- Calculamos las homografias
 K_inv = np.linalg.inv(K)
 Hl = K @ R1.T @ K_inv
 Hr = K @ R2.T @ K_inv
@@ -183,13 +185,11 @@ print(Hl)
 
 
 print(Hr)
-
+# 17.- Normalizar las homografias
 Hl = Hl / Hl[2,2]
 Hr = Hr / Hr[2,2]
 
-
-
-
+# 18.- Las aplicamos sobre las imagenes
 img_left_rect = cv2.warpPerspective(imgI, Hl, (img_left.shape[1], img_left.shape[0]))
 img_right_rect = cv2.warpPerspective(imgD, Hr, (img_right.shape[1], img_right.shape[0]))
 
@@ -200,6 +200,13 @@ combined_image = np.hstack((img_left_rect, img_right_rect))
 plt.figure(figsize=(15, 5))
 plt.imshow(combined_image, cmap='gray')
 plt.show()
+
+
+
+
+
+
+
 
 '''
 dist1 = np.zeros(5)  # o tu vector de distorsión real

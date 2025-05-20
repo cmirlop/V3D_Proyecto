@@ -11,7 +11,7 @@ def cargar_imagenes():
 
     image_left_gray = cv2.cvtColor(image_left, cv2.COLOR_BGR2GRAY)
     image_right_gray = cv2.cvtColor(image_right, cv2.COLOR_BGR2GRAY)
-    return image_left_gray, image_right_gray
+    return image_left_gray, image_right_gray,image_left,image_right
 
 
 def calcular_inliners(pts_left, pts_right,F):
@@ -126,7 +126,7 @@ def mostrar_img_puntos_coincidentes(img_left, img_right, pts_left, pts_right):
 #--- Pasos ---#
 
 #1.- Leemos imagenes y las convertimos de color a gris
-img_left , img_right = cargar_imagenes()
+img_left , img_right, imgI, imgD = cargar_imagenes()
 
 #2.- Aplicamos SIFT
 kp_left, des_left,kp_right, des_right = apl_sift(img_left , img_right)
@@ -159,7 +159,7 @@ mostrar_img_puntos_coincidentes(img_left, img_right, pts_left, pts_right)
 np.save('matriz_F.npy', f2)
 
 
-
+'''
 
 #Dibujar la linea epipolar
 
@@ -186,3 +186,4 @@ cv2.line(img_right_line, pt1, pt2, (255, 0, 0), 2)
 plt.imshow(img_right_line)
 plt.title('Línea epipolar en imagen derecha')
 plt.show()
+'''
