@@ -11,7 +11,7 @@ def cargar_imagenes():
 
     image_left_gray = cv2.cvtColor(image_left, cv2.COLOR_BGR2GRAY)
     image_right_gray = cv2.cvtColor(image_right, cv2.COLOR_BGR2GRAY)
-    return image_left_gray, image_right_gray
+    return image_left_gray, image_right_gray,image_left,image_right
 
 
 def calcular_inliners(pts_left, pts_right,F):
@@ -25,7 +25,12 @@ def calcular_inliners(pts_left, pts_right,F):
 def calcular_mascara(pts_left, pts_right,F):
     mascara = []
     for pt_i, pt_d in zip(pts_left,pts_right):
-        err = abs(pt_i.T @ F @ pt_d)
+        #Convertimso en homogeneas los puntos
+        x_i = np.array([pt_i[0], pt_i[1], 1.0])  # izquierda
+        x_d = np.array([pt_d[0], pt_d[1], 1.0])  # derecha
+        #Calculamos su error absoluta
+        err = abs(x_d @ F @ x_i)  # ya son vectores 1x3
+        #Si este es menor a 0.01 lo guardamos en la mascara
         mascara.append(1 if err < 0.01 else 0)
     mascara = np.array(mascara).reshape(-1, 1)
 
@@ -36,13 +41,35 @@ def apl_sift(img_left,img_right):
     sift = cv2.SIFT_create()
     kp_left, des_left = sift.detectAndCompute(img_left, None)
     kp_right, des_right = sift.detectAndCompute(img_right, None)
+    return kp_left,des_left,kp_right,des_right
 
 # Emparejar puntos clave usando BFMatcher
 def apl_matcher(des_left, des_right):
     bf = cv2.BFMatcher()
     matches = bf.knnMatch(des_left, des_right, k=2)
+    return matches
 
+# Aplicar el filtro de razón de Lowe
+def filtro_lowe(matches):
+    good_matches = []
+    for m, n in matches:
+        if m.distance < 0.75 * n.distance:
+            good_matches.append(m)
+    return good_matches
 
+# Obtener puntos clave buenos
+def obtener_puntos_buenos(kp_left,kp_right,good_matches):
+    pts_left = np.float32([kp_left[m.queryIdx].pt for m in good_matches])
+    pts_right = np.float32([kp_right[m.trainIdx].pt for m in good_matches])
+    return pts_left,pts_right
+
+# Filtrar inliers
+def filtr_inliners(pts_left,pts_right,mask):
+    pts_left = pts_left[mask.ravel() == 1]
+    pts_right = pts_right[mask.ravel() == 1]
+    return pts_left, pts_right
+
+#Calcular la matriz fundamental
 def calcular_fundamental(pts_left, pts_right) : 
     #Añadimos 1 a la 3a columnda para trabajar con coordenadas homogeneas
     puntos_izq = pts_left.copy()
@@ -78,10 +105,28 @@ def calcular_fundamental(pts_left, pts_right) :
     return f2,inliners,mascara
 
 
+def mostrar_img_puntos_coincidentes(img_left, img_right, pts_left, pts_right):
+    
+    # Crear una imagen combinada
+    combined_image = np.hstack((img_left, img_right))
+
+    # Visualización mejorada
+    plt.figure(figsize=(15, 5))
+    plt.imshow(combined_image, cmap='gray')
+
+    # Dibujar líneas de los puntos coincidentes
+    for pt1, pt2 in zip(pts_left, pts_right):
+        pt2_shifted = (pt2[0] + img_left.shape[1], pt2[1])
+        plt.scatter(pt1[0], pt1[1], color='cyan', marker='x')
+        plt.plot([pt1[0], pt2_shifted[0]], [pt1[1], pt2_shifted[1]], color='yellow')
+
+    plt.show()
+
+
 #--- Pasos ---#
 
 #1.- Leemos imagenes y las convertimos de color a gris
-img_left , img_right = cargar_imagenes()
+img_left , img_right, imgI, imgD = cargar_imagenes()
 
 #2.- Aplicamos SIFT
 kp_left, des_left,kp_right, des_right = apl_sift(img_left , img_right)
@@ -89,62 +134,38 @@ kp_left, des_left,kp_right, des_right = apl_sift(img_left , img_right)
 #3.- Aplicamos BFMatcher para emarejar puntos clave
 matches = apl_matcher(des_left, des_right)
 
+#4.- Aplicamos el filtro de lowe
+good_matches = filtro_lowe(matches)
 
 
+#5.- Obtener puntos clave buenos
+pts_left, pts_right = obtener_puntos_buenos(kp_left,kp_right,good_matches)
 
-# Aplicar el filtro de razón de Lowe
-good_matches = []
-for m, n in matches:
-    if m.distance < 0.75 * n.distance:
-        good_matches.append(m)
-
-# Obtener puntos clave buenos
-pts_left = np.float32([kp_left[m.queryIdx].pt for m in good_matches])
-pts_right = np.float32([kp_right[m.trainIdx].pt for m in good_matches])
-
-
-
-
-
-# Calcular la matriz fundamental
+#6.- Calcular la matriz fundamental
 #F, mask = cv2.findFundamentalMat(pts_left, pts_right, cv2.FM_RANSAC)
-
 f2,_,mask = calcular_fundamental(pts_left, pts_right)
+print("Matriz Fundamental")
 print(f2)
-print(mask)        # Debe ser (61, 1)
-print(pts_left.shape[0])
+#print(mask)       
+#print(pts_left.shape[0])
 
-# Filtrar inliers
-pts_left = pts_left[mask.ravel() == 1]
-pts_right = pts_right[mask.ravel() == 1]
+#7.- Filtramos inliners de los puntos que tenemos
+pts_left,pts_right = filtr_inliners(pts_left,pts_right,mask)
 
-# Crear una imagen combinada
-combined_image = np.hstack((img_left, img_right))
+#8.- Mostrar la imagen con los puntos coincidentes
+mostrar_img_puntos_coincidentes(img_left, img_right, pts_left, pts_right)
 
-# Visualización mejorada
-plt.figure(figsize=(15, 5))
-plt.imshow(combined_image, cmap='gray')
-
-# Dibujar líneas epipolares
-for pt1, pt2 in zip(pts_left, pts_right):
-    pt2_shifted = (pt2[0] + img_left.shape[1], pt2[1])
-    plt.scatter(pt1[0], pt1[1], color='cyan', marker='x')
-    plt.plot([pt1[0], pt2_shifted[0]], [pt1[1], pt2_shifted[1]], color='yellow')
-
-plt.show()
-
-# Exportar y mostrar la matriz fundamental
-print("Matriz Fundamental:")
-#print(F)
-
-# Guardar la matriz fundamental en un archivo .npy
+#9.- Guardar la matriz fundamental en un archivo .npy
 np.save('matriz_F.npy', f2)
+
+
+'''
 
 #Dibujar la linea epipolar
 
 
 # Punto en la imagen izquierda
-x = np.array(pts_left[2])     # [45, 70]
+x = np.array(random.choice(pts_left))     # [45, 70]
 x_homog = np.append(x, 1)  # en coordenadas homogéneas
 
 
@@ -165,3 +186,4 @@ cv2.line(img_right_line, pt1, pt2, (255, 0, 0), 2)
 plt.imshow(img_right_line)
 plt.title('Línea epipolar en imagen derecha')
 plt.show()
+'''
