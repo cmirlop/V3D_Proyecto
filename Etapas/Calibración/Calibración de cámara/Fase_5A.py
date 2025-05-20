@@ -131,7 +131,7 @@ pts_left, pts_right = obtener_puntos_buenos(kp_left,kp_right,good_matches)
 
 #6.- Cargar la matriz E en el código
 E = cargar_matriz_E()
-#F = cargar_matriz_F()
+#F = cargar_matriz_F()#
 
 #7.- Convertir en coordenadas homogeneas
 pts_left,pts_right=conv_homogeneas(pts_left, pts_right)
