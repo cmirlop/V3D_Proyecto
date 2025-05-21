@@ -62,22 +62,29 @@ def getDisparityMap(left, right):
     return disp_map
 
 # --------------------------------------------------------------------------------------------------------
-
+import cv2 as cv
 def main():
     # Carga las imagenes
-    left = Image.open("vision3D/nube_3D/teddy-png-2/teddy/im2.png")
-    right = Image.open("vision3D/nube_3D/teddy-png-2/teddy/im6.png")
+    left = Image.open("vision3D/nube_3D/teddy-png-2/teddy/left3.png")
+    right = Image.open("vision3D/nube_3D/teddy-png-2/teddy/right3.png")
+    new_size = (left.width // 4, left.height // 4)
+    left = left.resize(new_size)
+    right = right.resize(new_size)
 
     # Obtiene la disparidad a partir de la imagen izquierda y derecha
     start = time.time()
     disparity = getDisparityMap(np.array(left.convert('L')), np.array(right.convert('L')))
     end = time.time()
 
-    # Filtra la imagen y obtiene los colores de los pixeles
+    # Filtra la imagen y obtiene los colores de los pixeles de la imagen izquierda
     disparity = median_blur(disparity, 5)
     colors = np.array(left)
-    print(f"Computation time: {end-start:.2f}s")
 
+    #colors = [color[:, :-1] for color in colors]
+
+    #print(f"PPPPPPPPPPPPP{colors}")
+    print(f"Computation time: {end-start:.2f}s")
+    
     # Crea la carpeta en caso de no existir para almacenar el archivo de la nube de puntos y el mapa de calor correspondiente en formato PNG
     if not os.path.exists("vision3D/nube_3D/output"):
         os.mkdir("vision3D/nube_3D/output")

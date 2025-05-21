@@ -44,17 +44,33 @@ def median_blur(image, ksize):
 # --------------------------------------------------------------------------------------------------------
 # Guarda la nube de puntos 3D con los colores en un archivo PLY
 def save_point_cloud(filename, disparity, colors):
+    cx=-1.97 * 100
+    cx_p=-cx
+    cy=1.01 * 100
+    f=-3.5 * 100
+    Tx=1 * 0.01
+
+
+    '''
     Q = np.array([[1, 0, 0, -disparity.shape[1]/2],
                 [0, -1, 0, disparity.shape[0]/2],
                 [0, 0, 0, -0.8*disparity.shape[1]],  # distancia focal; adjust based on calibration
                 [0, 0, 1/0.05, 0]])  # linea de base (adjust based on your setup)
-
+    '''
+    Q = np.array([[1, 0, 0, -cx],#-1.97
+                [0, 1, 0, -cy],#1.01
+                [0, 0, 0, f],  # distancia focal -3.5
+                [0, 0, -1/Tx, (cx-cx_p)/Tx]])  # linea de base (-1.01 - (-1.01))/1
+    ''''''
     #points_3d = cv.reprojectImageTo3D(disparity, Q)
     points_3d = reproject_image_to_3D(disparity, Q)
     mask = disparity > 0  # Elimina los puntos en los que la disparidad en 0 o menos
+    print(f"MMMMMMMMMMMMMMMM{disparity.shape[0]}, {disparity.shape[1]}")
     points = points_3d[mask]
     colors = colors[mask]
+    #print(f"------------{points}, {colors}")
     points = np.hstack([points, colors])
+    #print(f"************{points}")
     header = f"""ply
 format ascii 1.0
 element vertex {len(points)}
