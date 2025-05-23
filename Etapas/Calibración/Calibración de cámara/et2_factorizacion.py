@@ -1,6 +1,6 @@
 import numpy as np
 
-P = np.load('matriz_P.npy')
+#P = np.load('matriz_P.npy')
 
 def Factorizazcion_algoritmo_Fusilleo(P):
     """
@@ -26,18 +26,19 @@ def Factorizazcion_algoritmo_Fusilleo(P):
 
     return K, R, t
 
-# Realizar la factorización de la matriz P
-K, R, t = Factorizazcion_algoritmo_Fusilleo(P)
+def main_f(P):
+    # Realizar la factorización de la matriz P
+    K, R, t = Factorizazcion_algoritmo_Fusilleo(P)
 
+    print("Matriz K de parámetros intrínsecos:")
+    print(K)
+    print("\nMatriz de Rotación R:")
+    print(R)
 
-print("Matriz K de parámetros intrínsecos:")
-print(K)
-print("\nMatriz de Rotación R:")
-print(R)
+    print("\nVector de Traslación t:")
+    print(t)
 
-print("\nVector de Traslación t:")
-print(t)
-
-np.save('matriz_K.npy', K)
-np.save('matriz_R_et2.npy', R)
-np.save('matriz_t_et2.npy', t)
+    np.save('matriz_K.npy', K)
+    np.save('matriz_R_et2.npy', R)
+    np.save('matriz_t_et2.npy', t)
+    return K, R, t

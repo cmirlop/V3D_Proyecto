@@ -170,6 +170,81 @@ np.save('matriz_Rec.npy', rec)
 K = cargar_matriz_K()
 R = cargar_matriz_R()
 t = cargar_matriz_t()
+
+def rectificacion_estereoscopica_calibrada(img_left, img_right, K, R, t):
+    """
+    Aplica la rectificación estereoscópica calibrada a un par de imágenes.
+    img_left, img_right: imágenes originales (color o gris)
+    K: matriz intrínseca de la cámara (3x3)
+    R: matriz de rotación entre cámaras (3x3)
+    t: vector de traslación entre cámaras (3x1)
+    Devuelve: img_left_rect, img_right_rect, Hl, Hr
+    """
+    dist1 = np.zeros(5)  # Suponiendo sin distorsión, ajusta si tienes los vectores reales
+    dist2 = np.zeros(5)
+    img_size = (img_left.shape[1], img_left.shape[0])
+
+    # Rectificación estéreo
+    R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
+        K, dist1,
+        K, dist2,
+        img_size, R, t,
+        flags=cv2.CALIB_ZERO_DISPARITY,
+        alpha=0
+    )
+
+    # Calcular homografías para rectificar imágenes
+    Hl = K @ R1 @ np.linalg.inv(K)
+    Hr = K @ R2 @ np.linalg.inv(K)
+
+    # Normalizar homografías
+    Hl = Hl / Hl[2,2]
+    Hr = Hr / Hr[2,2]
+
+    # Aplicar homografías
+    img_left_rect = cv2.warpPerspective(img_left, Hl, img_size)
+    img_right_rect = cv2.warpPerspective(img_right, Hr, img_size)
+
+    return img_left_rect, img_right_rect, Hl, Hr
+K = cargar_matriz_K()
+R = cargar_matriz_R()
+t = cargar_matriz_t()
+img_left_rect, img_right_rect, Hl, Hr = rectificacion_estereoscopica_calibrada(imgI, imgD, K, R, t)
+
+
+def plot_rectified_images(img_left_rect, img_right_rect, n_lines=10):
+    """
+    Muestra las imágenes rectificadas lado a lado con líneas horizontales.
+    """
+    # Si las imágenes son a color, conviértelas a escala de grises para el plot
+    if img_left_rect.ndim == 3:
+        img_left_rect_plot = cv2.cvtColor(img_left_rect, cv2.COLOR_BGR2GRAY)
+    else:
+        img_left_rect_plot = img_left_rect
+    if img_right_rect.ndim == 3:
+        img_right_rect_plot = cv2.cvtColor(img_right_rect, cv2.COLOR_BGR2GRAY)
+    else:
+        img_right_rect_plot = img_right_rect
+
+    # Concatenar imágenes horizontalmente
+    combined = np.hstack((img_left_rect_plot, img_right_rect_plot))
+
+    plt.figure(figsize=(15, 7))
+    plt.imshow(combined, cmap='gray')
+    height = combined.shape[0]
+    width_left = img_left_rect_plot.shape[1]
+
+    # Dibujar líneas horizontales
+    for i in range(1, n_lines+1):
+        y = int(i * height / (n_lines+1))
+        plt.plot([0, combined.shape[1]], [y, y], color='red', linewidth=1, linestyle='--')
+
+    # Línea divisoria entre imágenes
+    plt.axvline(x=width_left, color='yellow', linestyle='-', linewidth=2)
+    plt.title("Imágenes rectificadas con líneas epipolares horizontales")
+    plt.axis('off')
+    plt.show()
+plot_rectified_images(img_left_rect, img_right_rect)
 """
 D = np.diag(np.sign(np.diag(K)))
 K = K @ D
@@ -376,8 +451,8 @@ Hl = Hl / Hl[2,2]
 Hr = Hr / Hr[2,2]
 '''
 # 18.- Las aplicamos sobre las imagenes
-img_left_rect = cv2.warpPerspective(imgI, HL, (img_left.shape[1], img_left.shape[0]))
-img_right_rect = cv2.warpPerspective(imgD, HR, (img_right.shape[1], img_right.shape[0]))
+img_left_rect = cv2.warpPerspective(imgI, Hl, (img_left.shape[1], img_left.shape[0]))
+img_right_rect = cv2.warpPerspective(imgD, Hr, (img_right.shape[1], img_right.shape[0]))
 
 # Crear una imagen combinada
 combined_image = np.hstack((img_left_rect, img_right_rect))
