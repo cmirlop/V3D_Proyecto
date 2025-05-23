@@ -6,8 +6,8 @@ import random
 #Función que lee las imagenes y las convierte a escala de grises
 def cargar_imagenes():
     # Cargar las imágenes y convertirlas a escala de grises
-    image_left = cv2.imread('data/left.png') 
-    image_right = cv2.imread('data/right.png')
+    image_left = cv2.imread('data/left2.png') 
+    image_right = cv2.imread('data/right2.png')
 
     image_left_gray = cv2.cvtColor(image_left, cv2.COLOR_BGR2GRAY)
     image_right_gray = cv2.cvtColor(image_right, cv2.COLOR_BGR2GRAY)
@@ -83,8 +83,8 @@ def calcular_fundamental(pts_left, pts_right) :
     A = np.empty((0, 9))
     indices = np.random.choice(len(puntos_izq), size=8, replace=False)
     muestras_izq = puntos_izq[indices]
-    indices2 = np.random.choice(len(puntos_drch), size=8, replace=False)
-    muestras_drch = puntos_drch[indices2]
+    #indices2 = np.random.choice(len(puntos_drch), size=8, replace=False)
+    muestras_drch = puntos_drch[indices]
 
     for pt_izq, pt_dr, val in zip(muestras_izq, muestras_drch, range(0,8)):
         x1,y1,_ = pt_dr

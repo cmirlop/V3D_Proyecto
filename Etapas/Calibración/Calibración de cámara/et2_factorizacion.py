@@ -7,11 +7,13 @@ def Factorizazcion_algoritmo_Fusilleo(P):
     Extrae los parámetros intrínsecos K, rotación R y traslación t a partir de la matriz de proyección P.
     """
     Q, U = np.linalg.qr(np.linalg.inv(P[:3, :3])) #Hacer QR de los 3X3 de P
+    
 
     # Enforce negative focal lengths (signos)
     D = np.diag(np.sign(np.diag(U)) * np.array([-1, -1, 1]))
 
     Q = Q @ D
+    
     U = D @ U
 
     # Asegurar que R tiene determinante positivo
