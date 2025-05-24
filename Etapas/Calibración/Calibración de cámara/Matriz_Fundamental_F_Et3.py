@@ -241,6 +241,51 @@ def main_F(img_left, img_right):
     #9.- Guardar la matriz fundamental en un archivo .npy
     np.save('matriz_F.npy', f2)
 
+
+
+
+
+    pts1_h = np.hstack([pts_left, np.ones((len(pts_left), 1))])
+    pts2_h = np.hstack([pts_right, np.ones((len(pts_right), 1))])
+
+
+
+    lines2 = (f2 @ pts1_h.T).T
+    lines1 = (f2.T @ pts2_h.T).T
+
+    fig, axs = plt.subplots(1, 2, figsize=(14, 7))
+    # Left image
+    axs[0].imshow(img_left)
+    axs[0].set_title("Left image")
+    axs[0].axis("off")
+ 
+
+    # Right image
+    axs[1].imshow(img_right)
+    axs[1].set_title("Right image")
+    axs[1].axis("off")
+    
+    # Calcular epipolos
+    _, _, Vt = np.linalg.svd(f2)
+    epipolo_d = Vt[-1] / Vt[-1][2]  # En imagen derecha
+
+    _, _, Vt_T = np.linalg.svd(f2.T)
+    epipolo_i = Vt_T[-1] / Vt_T[-1][2]  # En imagen izquierda
+
+    # Dibujar epipolos en las imágenes
+    axs[0].plot(epipolo_i[0], epipolo_i[1], 'rx', markersize=10, label='Epipolo')
+    axs[1].plot(epipolo_d[0], epipolo_d[1], 'rx', markersize=10, label='Epipolo')
+
+    # Leyenda (solo una vez, si quieres)
+    axs[0].legend(loc='lower right')
+
+    plt.tight_layout()
+    #plt.savefig("output/lineas_epipolares.png")
+    plt.show()
+
+
+
+
     def draw_epipolar_lines(img1, img2, F, pts1, pts2):
         '''Draw epipolar lines on img1 and img2 for corresponding points pts1 and pts2.'''
         img1_color = cv2.cvtColor(img1, cv2.COLOR_GRAY2BGR)

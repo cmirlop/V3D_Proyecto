@@ -83,7 +83,7 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
     P4 = [Vt.T @ W.T @ U.T, t_hat]
     poses_camara = [P1, P2, P3, P4]
     for pose in poses_camara:
-        B = np.linalg.norm(pose[1])
+        B = np.linalg.norm(pose[1]) #Distancia entre bases
         #1.- Triagulacion 3D
         #Matriz de proyeccion de la camara principal (Identidad y cero)
         #P1 = np.hstack((np.array([[-3.5,0,1.97],[0,-3.5,1.01],[0,0,1]]), np.zeros((3,1))))
@@ -118,6 +118,7 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
         print(pose[0])
         print(x)
         print(pose[1])
+        print(pose)
         x_prim = pose[0] @ x[:3].T + pose[1]
         #3.- Return (R,t) si x3 > y x3'>0
         if x[-1] > 0 and x_prim[-1] > 0 : #Comprobamos que la profundidad es positiva
@@ -152,24 +153,79 @@ pts_left,pts_right=conv_homogeneas(pts_left, pts_right)
 i = np.random.randint(len(pts_left))
 
 #8.- Aplicar el cóigo de Rectificación 
-#Rectificacion = rectificacion_Esteroscipica_calibrada(E,pts_left[i],pts_right[i])
+Rectificacion = rectificacion_Esteroscipica_calibrada(E,pts_left[i],pts_right[i])
 
 print("Rectificacion")
 #print(Rectificacion)
+R = Rectificacion[0]
+t = Rectificacion[1]
+K = cargar_matriz_K()
+r1 = t.flatten() / np.linalg.norm(t)
+ez = np.array([0, 0, 1])
+r2 = np.cross(ez, r1)
+r2 = r2 / np.linalg.norm(r2)
+r3 = np.cross(r1, r2)
+R_rect = np.vstack([r1, r2, r3])
+
+R1 = R_rect
+R2 = R @ R_rect
+
+Hl = K @ R1 @ np.linalg.inv(K)
+Hr = K @ R2 @ np.linalg.inv(K)
+# 5. Normalizar
+Hl = Hl / Hl[2,2]
+Hr = Hr / Hr[2,2]
+
+img_left_rect = cv2.warpPerspective(imgI, Hl, (img_left.shape[1], img_left.shape[0]))
+img_right_rect = cv2.warpPerspective(imgD, Hr, (img_right.shape[1], img_right.shape[0]))
+
+# Crear una imagen combinada
+combined_image = np.hstack((img_left_rect, img_right_rect))
+
+# Visualización mejorada
+plt.figure(figsize=(15, 5))
+plt.imshow(combined_image, cmap='gray')
+plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+'''
+
 
 
 #B = np.linalg.norm(Rectificacion[1])
 #print(B)
 
-'''
+
 rec = np.hstack((Rectificacion[0],Rectificacion[1].reshape(3, 1)))
 print(rec)
 np.save('matriz_Rec.npy', rec)
-'''
-#9.- Correguimos signos negativos de la diagonal
-K = cargar_matriz_K()
-R = cargar_matriz_R()
-t = cargar_matriz_t()
+
+
+
+
+
+
+
+
+
+
 
 def rectificacion_estereoscopica_calibrada(img_left, img_right, K, R, t):
     """
@@ -209,58 +265,26 @@ def rectificacion_estereoscopica_calibrada(img_left, img_right, K, R, t):
 K = cargar_matriz_K()
 R = cargar_matriz_R()
 t = cargar_matriz_t()
-img_left_rect, img_right_rect, Hl, Hr = rectificacion_estereoscopica_calibrada(imgI, imgD, K, R, t)
+#img_left_rect, img_right_rect, Hl, Hr = rectificacion_estereoscopica_calibrada(imgI, imgD, K, R, t)
 
 
-def plot_rectified_images(img_left_rect, img_right_rect, n_lines=10):
-    """
-    Muestra las imágenes rectificadas lado a lado con líneas horizontales.
-    """
-    # Si las imágenes son a color, conviértelas a escala de grises para el plot
-    if img_left_rect.ndim == 3:
-        img_left_rect_plot = cv2.cvtColor(img_left_rect, cv2.COLOR_BGR2GRAY)
-    else:
-        img_left_rect_plot = img_left_rect
-    if img_right_rect.ndim == 3:
-        img_right_rect_plot = cv2.cvtColor(img_right_rect, cv2.COLOR_BGR2GRAY)
-    else:
-        img_right_rect_plot = img_right_rect
 
-    # Concatenar imágenes horizontalmente
-    combined = np.hstack((img_left_rect_plot, img_right_rect_plot))
 
-    plt.figure(figsize=(15, 7))
-    plt.imshow(combined, cmap='gray')
-    height = combined.shape[0]
-    width_left = img_left_rect_plot.shape[1]
-
-    # Dibujar líneas horizontales
-    for i in range(1, n_lines+1):
-        y = int(i * height / (n_lines+1))
-        plt.plot([0, combined.shape[1]], [y, y], color='red', linewidth=1, linestyle='--')
-
-    # Línea divisoria entre imágenes
-    plt.axvline(x=width_left, color='yellow', linestyle='-', linewidth=2)
-    plt.title("Imágenes rectificadas con líneas epipolares horizontales")
-    plt.axis('off')
-    plt.show()
-plot_rectified_images(img_left_rect, img_right_rect)
-"""
 D = np.diag(np.sign(np.diag(K)))
 K = K @ D
 print(img_left.shape)
 print("K")
 print(K)
 print(np.linalg.det(K)) #Debe de dar un valor muy alto
-"""
+
 
 #Pasos pag 363 IREG.pdf
 
 #Cargar F a memoria
 F = cargar_matriz_F()
-E = cargar_matriz_E()
+#E = cargar_matriz_E()
 
-#Determinal el epiolo eL desde F
+#Determinal el epiolo eL desde E
 U,S,Vt = np.linalg.svd(E)
 e_L = Vt[-1]
 e_L = e_L / e_L[2]
@@ -360,7 +384,7 @@ HR = A @ HL @ M
 
 
 
-'''
+
 # 10.- Normalizamos el vector de translacion
 r1 = t / np.linalg.norm(t)
 
@@ -449,10 +473,12 @@ print(Hr)
 # 17.- Normalizar las homografias
 Hl = Hl / Hl[2,2]
 Hr = Hr / Hr[2,2]
-'''
+
+HL = HL / HL[2,2]
+HR = HR / HR[2,2]
 # 18.- Las aplicamos sobre las imagenes
-img_left_rect = cv2.warpPerspective(imgI, Hl, (img_left.shape[1], img_left.shape[0]))
-img_right_rect = cv2.warpPerspective(imgD, Hr, (img_right.shape[1], img_right.shape[0]))
+img_left_rect = cv2.warpPerspective(imgI, HL, (img_left.shape[1], img_left.shape[0]))
+img_right_rect = cv2.warpPerspective(imgD, HR, (img_right.shape[1], img_right.shape[0]))
 
 # Crear una imagen combinada
 combined_image = np.hstack((img_left_rect, img_right_rect))
@@ -463,46 +489,8 @@ plt.imshow(combined_image, cmap='gray')
 plt.show()
 
 
-
-
-
-
-
-
 '''
-dist1 = np.zeros(5)  # o tu vector de distorsión real
-dist2 = np.zeros(5)
 
-R = Rectificacion[0]  # Rotación relativa (3x3)
-T = Rectificacion[1] # Traslación relativa (3x1)
 
-# Tamaño imagen (ancho, alto)
-img_size = (img_left.shape[1], img_left.shape[0])
 
-# Rectificación estéreo
-R1, R2, P1, P2, Q, roi1, roi2 = cv2.stereoRectify(
-    K, dist1,
-    K, dist2,
-    img_size, R, T,
-    flags=cv2.CALIB_ZERO_DISPARITY,
-    alpha=0
-)
 
-# Calcular homografías para rectificar imágenes
-Hl = K @ R1 @ np.linalg.inv(K)
-Hr = K @ R2 @ np.linalg.inv(K)
-
-print("Homografía para imagen izquierda:\n", Hl)
-print("Homografía para imagen derecha:\n", Hr)
-
-img_left_rect = cv2.warpPerspective(img_left, Hl, (img_left.shape[1], img_left.shape[0]))
-img_right_rect = cv2.warpPerspective(img_right, Hr, (img_right.shape[1], img_right.shape[0]))
-
-# Crear una imagen combinada
-combined_image = np.hstack((img_left_rect, img_right_rect))
-
-# Visualización mejorada
-plt.figure(figsize=(15, 5))
-plt.imshow(combined_image, cmap='gray')
-plt.show()
-'''
