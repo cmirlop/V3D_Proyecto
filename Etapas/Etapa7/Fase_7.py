@@ -11,7 +11,6 @@ block_size = 15 #70
 max_disp = 64 #23
 activate_subpixel = True
 block_half = int(block_size/2)
-ajuste_desplazamiento = int(255 / max_disp)
 
 # -------------------------------------------------- ------------------------------------------------------
 
