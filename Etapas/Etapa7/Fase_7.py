@@ -7,8 +7,8 @@ import sys
 import open3d as o3d
 
 # Variables globales de diseño utilizadas para el ajuste de la obtencion del mapa de Disparidad
-block_size = 15 #70
-max_disp = 64 #23
+block_size = 15 
+max_disp = 64 
 activate_subpixel = True
 block_half = int(block_size/2)
 
