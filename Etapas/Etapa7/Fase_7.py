@@ -1,0 +1,231 @@
+import time
+import numpy as np
+import matplotlib.pyplot as plt
+import os
+from PIL import Image
+import sys
+import open3d as o3d
+
+# Variables globales de diseño utilizadas para el ajuste de la obtencion del mapa de Disparidad
+block_size = 15 #70
+max_disp = 64 #23
+activate_subpixel = True
+block_half = int(block_size/2)
+ajuste_desplazamiento = int(255 / max_disp)
+
+# --------------------------------------------------------------------------------------------------------
+
+# Centra una imagen con un respectivo offset
+def getROI(y, x, img, desplazamiento=0): 
+    y_start, y_end = y - block_half, y +block_half
+    x_start, x_end = x - block_half - desplazamiento + 1, x + block_half - desplazamiento + 1
+    return img[y_start:y_end, x_start:x_end]
+
+# --------------------------------------------------------------------------------------------------------
+
+#Permite seleccionar la funcion de coste que se quiera entre SAD, SSD y NCC
+def fdc(block_prev, block_next, mode=1):
+    if mode == 0: # SAD (Sum of Absolute Differences)
+        error = np.sum(np.abs(block_prev - block_next), dtype=np.float32)
+
+    elif mode == 1: # SSD (Sum of Squared Differences)
+        error = np.sum((block_prev - block_next)**2, dtype=np.float32)
+
+    elif mode == 2: # NCC (Normalized Cross-Correlation)
+        numerator = np.sum(block_prev * block_next)
+        denominator = np.sqrt(np.sum(block_prev ** 2) * np.sum(block_next ** 2))
+        if denominator != 0:
+            error = numerator / denominator
+        else:
+            error  = 0.0
+
+    else:
+        return "Opcion no valida"
+    
+    return error
+
+    pass
+# --------------------------------------------------------------------------------------------------------
+
+# Comrpueba que el subpixel selecciona sea el mejor y lo cambia si es necesario, mediante la comprobacion de los pixeles que tiene alrededor.
+# Generando puntos entre las capas del Block Matching
+def getBestSubpixel(best_offset, errors):
+    if 0 < best_offset < max_disp-1 and errors[best_offset-1] and errors[best_offset+1]:
+        numerador = errors[best_offset-1] - errors[best_offset+1]
+        denominator = 2 * errors[best_offset-1] - 4 * errors[best_offset] + 2 * errors[best_offset+1] 
+        if denominator != 0:
+            subpixel_offset = (numerador / denominator)
+            return subpixel_offset
+    return 0.0
+
+# --------------------------------------------------------------------------------------------------------
+
+# Genera el mapa de disparidad entre dos imagenes
+def getDisparityMap(left, right):
+
+    h, w = left.shape
+    disp_map = np.zeros((h,w), dtype=np.float32)
+
+    for y in range(block_half, h):
+        for x in range(max_disp, w):   
+            block_prev = getROI(y, x, left)
+            best_error = float('inf')
+            best_d = None
+            errors = []
+
+            for dx in range(max_disp): # Compara el pixel del bloque con los pixeles que tiene alrededor en el eje X
+                block_next = getROI(y, x, right, dx)
+
+                if block_prev.shape != block_next.shape:
+                    errors.append(None)
+                    continue
+
+                error = fdc(block_prev, block_next, 2) # Funcion de coste(0-SAD,1-SSD,2-NCC)
+                errors.append(error)
+
+                if error < best_error:
+                    best_error = error
+                    best_d = dx
+            #activate_subpixel =False
+            if activate_subpixel:
+                best_d += getBestSubpixel(best_d, errors)
+
+            disp_map[y, x] = best_d
+
+    return disp_map
+
+# --------------------------------------------------------------------------------------------------------
+
+def reproject_image_to_3D(disparity, T_1):
+    height, width = disparity.shape
+    points_3D = np.zeros((height, width, 3), dtype=np.float32)
+    msg = "\rLoading ."
+    sys.stdout.write(f"{msg}")
+
+    for y in range(height):
+        for x in range(width):
+
+            if disparity[y, x] == 0: # Evita division entre 0 y establece que el punto esta al frente
+                points_3D[y, x] = 0
+                continue
+
+            d = disparity[y, x]
+            vec = np.array([x, y, d, 1], dtype=np.float32)  # Pasa a coordenadas homogeneas
+            point = T_1 @ vec  
+            points_3D[y, x] = point[:3] / point[3]  # Normaliza con W, es decir, el vector entre la ultima componente para dejarla a 1 
+
+        # Escribe Loading ... con algo de movimiento en los 3 puntos
+        if len(msg) <= 11:
+            msg += "."
+        else:
+            msg = "\rLoading ."
+        sys.stdout.write(f"{msg}")
+        sys.stdout.flush()
+        
+    return points_3D
+
+# --------------------------------------------------------------------------------------------------------
+
+def render(path):
+    pcd = o3d.io.read_point_cloud(path)
+    o3d.visualization.draw_geometries([pcd])
+
+# --------------------------------------------------------------------------------------------------------
+
+def median_blur(image, ksize):
+    if ksize % 2 == 0:
+        raise ValueError("El tamanyo del bloque debe ser un numero impar.")
+
+    height, width = image.shape
+    padded_image = np.pad(image, ksize // 2, mode='reflect')
+    output = np.zeros_like(image)
+
+    for i in range(height):
+        for j in range(width):
+            # Extrae la vecindad del píxel
+            neighborhood = padded_image[i:i+ksize, j:j+ksize]
+            # Calcula la mediana y la asigna al píxel correspondiente
+            output[i, j] = np.median(neighborhood)
+
+    return output
+
+# --------------------------------------------------------------------------------------------------------
+
+# Guarda la nube de puntos 3D con los colores en un archivo PLY
+def save_point_cloud(filename, disparity, colors):
+    K = np.load('vision3D/nube_3D/matriz_K.npy')
+    
+    cx = K[0,2]
+    cx_p = -cx
+    cy = K[1,2]
+    fx = K[0,0]
+    fy = K[1,1]
+    Tx = K[1,2]
+
+    T_1 = np.array([[1/fx, 0, 0, -cx/fx],#-1.97
+                [0, 1/fy, 0, -cy/fy],#1.01
+                [0, 0, 0, 1],  # distancia focal -3.5
+                [0, 0, 1/(fx*Tx), (cx_p-cx)/(fx*Tx)]]) 
+    
+    points_3d = reproject_image_to_3D(disparity, T_1)
+    mask = disparity > 0  # Elimina los puntos en los que la disparidad en 0 o menos
+    
+    points = points_3d[mask]
+    colors = colors[mask]
+    
+    points = np.hstack([points, colors])
+    
+    header = f"""ply
+format ascii 1.0
+element vertex {len(points)}
+property float x
+property float y
+property float z
+property uchar red
+property uchar green
+property uchar blue
+end_header
+"""
+    with open(filename, "w") as f:
+        f.write(header)
+        np.savetxt(f, points, fmt="%f %f %f %d %d %d")
+        
+# --------------------------------------------------------------------------------------------------------
+
+#import cv2 as cv
+def main():
+    # Carga las imagenes
+    left = Image.open("data/left5.png")
+    right = Image.open("data/right5.png")
+
+    # Reduce el tamaño de las imagenes en caso de tener una anchura mayor a 800 para reducir tiempo de computo
+    if left.width > 800:
+        new_size = (left.width // 4, left.height // 4)
+        left = left.resize(new_size)
+        right = right.resize(new_size)
+
+    # Obtiene la disparidad a partir de la imagen izquierda y derecha
+    start = time.time()
+    disparity = getDisparityMap(np.array(left.convert('L')), np.array(right.convert('L')))
+    end = time.time()
+
+    # Filtra la imagen y obtiene los colores de los pixeles de la imagen izquierda
+    disparity = median_blur(disparity, 5)
+    colors = np.array(left)
+    
+    # Estadistica de tiempo de computo
+    print(f"Tiempo de generacion del mapa de disparidad: {end-start:.2f}s")
+    
+    # Crea la carpeta en caso de no existir para almacenar el archivo de la nube de puntos y el mapa de calor correspondiente en formato PNG
+    if not os.path.exists("/output"):
+        os.mkdir("/output")
+        
+    save_point_cloud(f"/output/BM_python.ply", disparity, colors) # Guarda la nube de puntos en un archivo PLY
+    plt.imsave(f"/BM_python.png", disparity, cmap='jet') # Guarda el mapa de calor de la imagen en base a la nube de puntos
+    
+    # Muestra el resultado de la nube de puntos
+    render("/output/BM_python.ply")
+
+
+if __name__ == "__main__":
+    main()
