@@ -199,7 +199,6 @@ end_header
 # -------------------------------------------------- ------------------------------------------------------
 
 
-#import cv2 as cv
 def main():
     # Carga las imagenes
     left = Image.open("data/left5.png")
