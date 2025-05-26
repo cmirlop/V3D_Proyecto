@@ -54,7 +54,16 @@ def conv_homogeneas(pts_left, pts_right):
     pts_right = np.hstack([pts_right, np.ones((pts_right.shape[0], 1))])
     return pts_left, pts_right
 
+#Determinar las poses de la camara
+def calcular_poses_camara(R1,R2,t_hat):
+    P1 = [R1, t_hat]
+    P2 = [R2, t_hat]
+    P3 = [R1, t_hat]
+    P4 = [R2, t_hat]
+    poses_camara = [P1, P2, P3, P4]
+    return poses_camara
 
+ 
 #Función que lee las imagenes y las convierte a escala de grises
 def cargar_imagenes():
     # Cargar las imágenes y convertirlas a escala de grises
@@ -65,9 +74,9 @@ def cargar_imagenes():
     image_right_gray = cv2.cvtColor(image_right, cv2.COLOR_BGR2GRAY)
     return image_left_gray, image_right_gray, image_left, image_right
 
-def rectificacion_Esteroscipica_calibrada(E,y1,y2):
-
-    #Obtenemos SVD
+def rectificacion_Esteroscipica_calibrada(E,y1,y2,K, inliners):
+    print(inliners)
+    #Descomponemos E
     U,S,Vt = np.linalg.svd(E)
 
     #Creamos la matriz W
@@ -75,54 +84,82 @@ def rectificacion_Esteroscipica_calibrada(E,y1,y2):
               [-1, 0, 0],
               [0, 0, 1]])
 
-    #Poses camara
-    t_hat = Vt[:, 2] #Ultima columna 
-    P1 = [Vt.T @ W @ U.T, t_hat]
-    P2 = [Vt.T @ W.T @ U.T, t_hat]
-    P3 = [Vt.T @ W @ U.T, t_hat]
-    P4 = [Vt.T @ W.T @ U.T, t_hat]
-    poses_camara = [P1, P2, P3, P4]
+    #Determinar las poses de la camara
+    t_hat = U[:, 2] #Ultima columna Vt
+    R1 = Vt.T @ W @ U.T
+    R2 = Vt.T @ W.T @ U.T
+    poses_camara = calcular_poses_camara(R1,R2,t_hat)
+    
+    #Calculo de P1
+    #Matriz de proyeccion de la camara principal (Identidad y cero)
+    #P1 = np.hstack((np.array([[-3.5,0,1.97],[0,-3.5,1.01],[0,0,1]]), np.zeros((3,1))))
+    P1 = K @ np.hstack((np.eye(3), np.zeros((3,1))))
+    mejor_r, mejor_t, max_validos = None,None,0
     for pose in poses_camara:
         B = np.linalg.norm(pose[1]) #Distancia entre bases
         #1.- Triagulacion 3D
-        #Matriz de proyeccion de la camara principal (Identidad y cero)
-        #P1 = np.hstack((np.array([[-3.5,0,1.97],[0,-3.5,1.01],[0,0,1]]), np.zeros((3,1))))
-        P1 = np.hstack((np.eye(3,3), np.zeros((3,1))))
         #Matriz de la segunda camara (R|T)
-        P2 = np.hstack((pose[0], pose[1].reshape(3,1)))
+        P2 = K @ np.hstack((pose[0], pose[1].reshape(3,1)))
         #P2 = np.hstack(((np.array([[-3.5,0,1.97],[0,-3.5,1.01],[0,0,1]]),np.array([[B*-3.5,0,0]]).T)))
-
-        Q = np.array(([[1,0,0, -1.97],[0,1,0,-1.01],[0,0,0,-3.5],[0,0,-1/B,(-3.5+3.5)/B]]))
-        print(P1)
-        print(P2)
-        print(Q)
+        #Calculamos Q
+        #Q = np.array(([[1,0,0, -1.97],[0,1,0,-1.01],[0,0,0,-3.5],[0,0,-1/B,(-3.5+3.5)/B]]))
+        #print(P1)
+        #print(P2)
+        #print(Q)
         # Extraemos u y v de los puntos proporcionados
-        u1, v1, _ = y1
-        u2, v2, _ = y2
+        num_validos = 0
+ 
+        for inli in range(y1.shape[0]):
+            pizq = np.linalg.inv(K) @ np.array([y1[inli][0], y1[inli][1], 1.0])
+            pder = np.linalg.inv(K) @ np.array([y2[inli][0], y2[inli][1], 1.0])
+            #u1, v1, _ = y1
+            #u2, v2, _ = y2
 
-        # Construir la matriz A (4x4)
-        A = np.array([
-            u1 * P1[2,:] - P1[0,:],
-            v1 * P1[2,:] - P1[1,:],
-            u2 * P2[2,:] - P2[0,:],
-            v2 * P2[2,:] - P2[1,:]
-        ])
+            # Construir la matriz A (4x4)
+            A = np.array([
+                y1[inli][0] * P1[2,:] - P1[0,:],
+                y1[inli][1] * P1[2,:] - P1[1,:],
+                y2[inli][0] * P2[2,:] - P2[0,:],
+                y2[inli][1] * P2[2,:] - P2[1,:]
+            ])
 
-        # Resolver A X = 0 usando SVD
-        _, _, Vt = np.linalg.svd(A)
-        x = Vt[-1]
-        x = x / x[-1]  # Normalizar homogéneo
+            # Resolver A X = 0 usando SVD
+            _, _, Vt = np.linalg.svd(A)
+            x = Vt[-1]
+            x = x / x[-1]  # Normalizar homogéneo
 
         #2.- Compute the same point in the camera 
         # centered coordinate system of the second camera:
-        print(pose[0])
-        print(x)
-        print(pose[1])
-        print(pose)
-        x_prim = pose[0] @ x[:3].T + pose[1]
+        #x_prim = pose[0] @ x[:3].T + pose[1]
         #3.- Return (R,t) si x3 > y x3'>0
-        if x[-1] > 0 and x_prim[-1] > 0 : #Comprobamos que la profundidad es positiva
-            return pose
+        #if x[-1] > 0 and x_prim[-1] > 0 : #Comprobamos que la profundidad es positiva
+        #    return pose
+            x1 = (P1 @ x)[2]
+            x2 = (P2 @ x)[2]
+            if x1 > 0 and x2 > 0:
+                num_validos += 1
+        if num_validos > max_validos:
+            mejor_r,mejor_t,max_validos = pose[0],pose[1],num_validos
+    return mejor_r,mejor_t
+
+
+def calcular_homografias(R,t,K):
+    r1 = t.flatten() / np.linalg.norm(t)
+    ez = np.array([0, 0, 1])
+    r2 = np.cross(ez, r1)
+    r2 = r2 / np.linalg.norm(r2)
+    r3 = np.cross(r1, r2)
+    R_rect = np.vstack([r1, r2, r3])
+
+    R1 = R_rect
+    R2 = R @ R_rect
+
+    Hl = K @ R1 @ np.linalg.inv(K)
+    Hr = K @ R2 @ np.linalg.inv(K)
+    # 5. Normalizar
+    Hl = Hl / Hl[2,2]
+    Hr = Hr / Hr[2,2]
+    return Hl, Hr,R1,R2
 
 
 
@@ -145,42 +182,50 @@ pts_left, pts_right = obtener_puntos_buenos(kp_left,kp_right,good_matches)
 
 #6.- Cargar la matriz E en el código
 E = cargar_matriz_E()
-#F = cargar_matriz_F()#
 
 #7.- Convertir en coordenadas homogeneas
 pts_left,pts_right=conv_homogeneas(pts_left, pts_right)
 
 i = np.random.randint(len(pts_left))
 
+K = cargar_matriz_K()
+
 #8.- Aplicar el cóigo de Rectificación 
-Rectificacion = rectificacion_Esteroscipica_calibrada(E,pts_left[i],pts_right[i])
+R,t = rectificacion_Esteroscipica_calibrada(E,pts_left,pts_right,K, np.load('inliners.npy'))
 
 print("Rectificacion")
 #print(Rectificacion)
-R = Rectificacion[0]
-t = Rectificacion[1]
-K = cargar_matriz_K()
-r1 = t.flatten() / np.linalg.norm(t)
-ez = np.array([0, 0, 1])
-r2 = np.cross(ez, r1)
-r2 = r2 / np.linalg.norm(r2)
-r3 = np.cross(r1, r2)
-R_rect = np.vstack([r1, r2, r3])
 
-R1 = R_rect
-R2 = R @ R_rect
+#9.- Determinar las homografias
+#R = Rectificacion[0]
+#t = Rectificacion[1]
+Hl, Hr, R1,R2 = calcular_homografias(R,t,K)
 
-Hl = K @ R1 @ np.linalg.inv(K)
-Hr = K @ R2 @ np.linalg.inv(K)
-# 5. Normalizar
-Hl = Hl / Hl[2,2]
-Hr = Hr / Hr[2,2]
-
+#10.- Aplicarmos las homografias
 img_left_rect = cv2.warpPerspective(imgI, Hl, (img_left.shape[1], img_left.shape[0]))
 img_right_rect = cv2.warpPerspective(imgD, Hr, (img_right.shape[1], img_right.shape[0]))
 
+#p69
+def rectificar_puntos(pts, R, f=1.0):
+    # pts: Nx2 o Nx3 (si ya están en homogéneas)
+    # R: matriz de rotación 3x3
+    # f: distancia focal (puedes usar la de tu matriz K)
+    if pts.shape[1] == 2:
+        pts_h = np.hstack([pts, np.ones((pts.shape[0], 1))])
+    else:
+        pts_h = pts
+    pts_rot = (R @ pts_h.T).T  # Nx3
+    x_ = pts_rot[:, 0]
+    y_ = pts_rot[:, 1]
+    z_ = pts_rot[:, 2]
+    x_rect = f * x_ / z_
+    y_rect = f * y_ / z_
+    return np.vstack([x_rect, y_rect]).T  # Nx2
+pts_left_rect = rectificar_puntos(imgI, R1,3.5)
+pts_right_rect = rectificar_puntos(imgD, R2, 3.5)
+
 # Crear una imagen combinada
-combined_image = np.hstack((img_left_rect, img_right_rect))
+combined_image = np.hstack((pts_left_rect, pts_right_rect))
 
 # Visualización mejorada
 plt.figure(figsize=(15, 5))
