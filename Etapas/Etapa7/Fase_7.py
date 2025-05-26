@@ -13,7 +13,7 @@ activate_subpixel = True
 block_half = int(block_size/2)
 ajuste_desplazamiento = int(255 / max_disp)
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
 
 # Centra una imagen con un respectivo offset
 def getROI(y, x, img, desplazamiento=0): 
@@ -21,7 +21,8 @@ def getROI(y, x, img, desplazamiento=0):
     x_start, x_end = x - block_half - desplazamiento + 1, x + block_half - desplazamiento + 1
     return img[y_start:y_end, x_start:x_end]
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 #Permite seleccionar la funcion de coste que se quiera entre SAD, SSD y NCC
 def fdc(block_prev, block_next, mode=1):
@@ -45,7 +46,8 @@ def fdc(block_prev, block_next, mode=1):
     return error
 
     pass
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 # Comrpueba que el subpixel selecciona sea el mejor y lo cambia si es necesario, mediante la comprobacion de los pixeles que tiene alrededor.
 # Generando puntos entre las capas del Block Matching
@@ -58,7 +60,8 @@ def getBestSubpixel(best_offset, errors):
             return subpixel_offset
     return 0.0
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 # Genera el mapa de disparidad entre dos imagenes
 def getDisparityMap(left, right):
@@ -94,7 +97,8 @@ def getDisparityMap(left, right):
 
     return disp_map
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 def reproject_image_to_3D(disparity, T_1):
     height, width = disparity.shape
@@ -124,13 +128,15 @@ def reproject_image_to_3D(disparity, T_1):
         
     return points_3D
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 def render(path):
     pcd = o3d.io.read_point_cloud(path)
     o3d.visualization.draw_geometries([pcd])
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 def median_blur(image, ksize):
     if ksize % 2 == 0:
@@ -149,7 +155,8 @@ def median_blur(image, ksize):
 
     return output
 
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 # Guarda la nube de puntos 3D con los colores en un archivo PLY
 def save_point_cloud(filename, disparity, colors):
@@ -190,7 +197,8 @@ end_header
         f.write(header)
         np.savetxt(f, points, fmt="%f %f %f %d %d %d")
         
-# --------------------------------------------------------------------------------------------------------
+# -------------------------------------------------- ------------------------------------------------------
+
 
 #import cv2 as cv
 def main():
