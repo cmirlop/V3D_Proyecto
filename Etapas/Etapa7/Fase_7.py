@@ -159,7 +159,7 @@ def median_blur(image, ksize):
 
 # Guarda la nube de puntos 3D con los colores en un archivo PLY
 def save_point_cloud(filename, disparity, colors):
-    K = np.load('vision3D/nube_3D/matriz_K.npy')
+    K = np.load('matriz_K.npy')
     
     cx = K[0,2]
     cx_p = -cx
