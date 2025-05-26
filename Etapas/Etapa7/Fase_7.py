@@ -88,7 +88,7 @@ def getDisparityMap(left, right):
                 if error < best_error:
                     best_error = error
                     best_d = dx
-            #activate_subpixel =False
+                    
             if activate_subpixel:
                 best_d += getBestSubpixel(best_d, errors)
 
