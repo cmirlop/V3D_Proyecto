@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 
-P = np.load('matriz_P.npy')
+#P = np.load('matriz_P.npy')
 
 def factorizacion_RQ(P):
     M = P[:, :-1]  # Matriz 3x3 (las tres primeras columnas de P)
