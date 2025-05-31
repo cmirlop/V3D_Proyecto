@@ -5,6 +5,7 @@ import os
 from PIL import Image
 import sys
 import open3d as o3d
+import random
 
 # Variables globales de diseño utilizadas para el ajuste de la obtencion del mapa de Disparidad
 block_size = 15 
@@ -60,6 +61,47 @@ def getBestSubpixel(best_offset, errors):
     return 0.0
 
 # -------------------------------------------------- ------------------------------------------------------
+def compare_random_pixel(left, right):
+    h, w = left.shape
+
+    random_x = np.random.randint(0, w)
+    random_y = np.random.randint(0, h)
+
+    errorsSAD=[]
+    errorsSSD=[]
+    errorsNCC=[]
+
+    for x in range(0, w):
+        px_left = left[random_y,random_x]
+        px_right = right[random_y,x]
+
+        error = fdc(px_left, px_right, 1) # Funcion de coste(0-SAD,1-SSD,2-NCC)
+        errorsSAD.append(error)
+        error = fdc(px_left, px_right, 0)
+        errorsSSD.append(error)
+        error = fdc(px_left, px_right, 2)
+        errorsNCC.append(error)
+
+    # Crea la figura y los ejes
+    fig = plt.figure(dpi=100)
+    plt.plot(np.arange(len(errorsSAD)), errorsSAD, label="SAD", color="b")
+    plt.plot(np.arange(len(errorsSSD)), errorsSSD, label="SSD", color="r")
+    plt.plot(np.arange(len(errorsNCC)), errorsNCC, label="NCC", color="g")
+
+    # Etiquetas y título
+    plt.xlabel("X")
+    plt.ylabel("Y")
+    plt.title(f"Gráfica de la función de coste en el pixel {random_x},{random_y}")
+    plt.legend()
+    plt.grid(True)
+
+    # Muestra la gráfica
+    plt.show()
+
+    # Guarda la grafica
+    fig.savefig("Etapa7/output/SADvsSSDvsNCC.png", dpi=300)
+
+# -------------------------------------------------- ------------------------------------------------------
 
 
 # Genera el mapa de disparidad entre dos imagenes
@@ -82,7 +124,7 @@ def getDisparityMap(left, right):
                     errors.append(None)
                     continue
 
-                error = fdc(block_prev, block_next, 2) # Funcion de coste(0-SAD,1-SSD,2-NCC)
+                error = fdc(block_prev, block_next, 1) # Funcion de coste(0-SAD,1-SSD,2-NCC)
                 errors.append(error)
 
                 if error < best_error:
@@ -159,7 +201,7 @@ def median_blur(image, ksize):
 
 # Guarda la nube de puntos 3D con los colores en un archivo PLY
 def save_point_cloud(filename, disparity, colors):
-    K = np.load('matriz_K.npy')
+    K = np.load('Etapa7/matriz_K.npy')
     
     cx = K[0,2]
     cx_p = -cx
@@ -205,14 +247,21 @@ def main():
     right = Image.open("data/right5.png")
 
     # Reduce el tamaño de las imagenes en caso de tener una anchura mayor a 800 para reducir tiempo de computo
-    if left.width > 800:
-        new_size = (left.width // 4, left.height // 4)
+    if left.width != 450 and left.height != 375:
+        new_size = (450, 375)
         left = left.resize(new_size)
         right = right.resize(new_size)
+    
+    # Convierte las imagenes a escala de grises
+    left_gray = np.array(left.convert('L'))
+    right_gray = np.array(right.convert('L'))
 
+    # Compara las distintas funciones de coste(SAD, SSD y NCC) en un pixel aleatorio
+    compare_random_pixel(left_gray, right_gray)
+    
     # Obtiene la disparidad a partir de la imagen izquierda y derecha
     start = time.time()
-    disparity = getDisparityMap(np.array(left.convert('L')), np.array(right.convert('L')))
+    disparity = getDisparityMap(left_gray, right_gray)
     end = time.time()
 
     # Filtra la imagen y obtiene los colores de los pixeles de la imagen izquierda
@@ -223,14 +272,14 @@ def main():
     print(f"Tiempo de generacion del mapa de disparidad: {end-start:.2f}s")
     
     # Crea la carpeta en caso de no existir para almacenar el archivo de la nube de puntos y el mapa de calor correspondiente en formato PNG
-    if not os.path.exists("/output"):
-        os.mkdir("/output")
+    if not os.path.exists("Etapa7/output"):
+        os.mkdir("Etapa7/output")
         
-    save_point_cloud(f"/output/BM_python.ply", disparity, colors) # Guarda la nube de puntos en un archivo PLY
-    plt.imsave(f"/BM_python.png", disparity, cmap='jet') # Guarda el mapa de calor de la imagen en base a la nube de puntos
+    save_point_cloud(f"Etapa7/output/BM_python.ply", disparity, colors) # Guarda la nube de puntos en un archivo PLY
+    plt.imsave(f"Etapa7/output/BM_python.png", disparity, cmap='jet') # Guarda el mapa de calor de la imagen en base a la nube de puntos
     
     # Muestra el resultado de la nube de puntos
-    render("/output/BM_python.ply")
+    render("Etapa7/output/BM_python.ply")
 
 
 if __name__ == "__main__":
