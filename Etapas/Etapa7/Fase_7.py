@@ -7,15 +7,19 @@ import sys
 import open3d as o3d
 import random
 
-# Variables globales de diseño utilizadas para el ajuste de la obtencion del mapa de Disparidad
-block_size = 15 
-max_disp = 64 
-activate_subpixel = True
-block_half = int(block_size/2)
+'''Para el desarrollo del código correspondiente de la generación de la nube de puntos 3D. 
+Al principio del código se han declarado unas variables globales las cuales se utilizan en 
+la implementación del algoritmo Block Matching. Pero para facilitar su ajuste se han dejado 
+al principio. Estas variables son:'''
+block_size = 15 # Es el tamaño del bloque y corresponde al área de pixel que se van a analizar. Contra menor se a el valor se obtiene mas detalle, pero a su vez también se obtiene mas ruido.
+max_disp = 64 # Es la disparidad máxima y sirve para indicar el rango de comparación con los pixeles de alrededor del bloque. 
+activate_subpixel = True # Permite activar la interpolación subpixel
+block_half = int(block_size/2) # Es un atajo para centrar obtener el centro del bloque.
 
 # -------------------------------------------------- ------------------------------------------------------
 
-# Centra una imagen con un respectivo offset
+# Obtiene la región de interés o bloque que se desea analizar. Permitiendo introducir un 
+# offset(desplazamiento) sobre el eje X para adecuar el bloque en una comparación horizontal.
 def getROI(y, x, img, desplazamiento=0): 
     y_start, y_end = y - block_half, y +block_half
     x_start, x_end = x - block_half - desplazamiento + 1, x + block_half - desplazamiento + 1
@@ -61,6 +65,11 @@ def getBestSubpixel(best_offset, errors):
     return 0.0
 
 # -------------------------------------------------- ------------------------------------------------------
+
+# Elige un pixel aleatorio de la imagen izquierda y lo compara con la fila 
+# correspondiente en la imagen derecha. Aplicando las funciones de coste 
+# SAD, SSD y NCC. Por ultimo genera una grafica de comparacion del error obtenido
+# con cada funcion y la guarda en la carpeta output
 def compare_random_pixel(left, right):
     h, w = left.shape
 
@@ -104,7 +113,22 @@ def compare_random_pixel(left, right):
 # -------------------------------------------------- ------------------------------------------------------
 
 
-# Genera el mapa de disparidad entre dos imagenes
+''' Genera el mapa de disparidad entre dos imagenes, de la imagen izquierda obtiene sus dimensiones 
+y se utilizan para generar el mapa vació de disparidad. Luego se recorren todas las posiciones de la
+ imagen, empezando en el eje Y. Pero no se empieza por 0, sino por la mitad de distancia del bloque, 
+ debido que en caso de no hacer esto se produce un error al utilizarlo mas adelante. Después se 
+ recorre el eje X por la posición correspondiente al valor de disparidad máxima, para que no se 
+ salga a la hora de realizar la comparación.
+
+Una vez posicionados se genera el bloque de la imagen de origen(imagen izquierda) y se inicializan 
+los parámetros correspondientes a ese bloque(mejor error, mejor desplazamiento y lista de los 
+mejores errores). A continuación se compara el bloque origen con bloques que se generan sobre la 
+imagen destino(imagen derecha). Estos bloques se van desplazando en un rango de 0 a max\_disp-1, es 
+decir, que se va moviendo el bloque y nos quedamos con el que tiene menor error.
+
+Tras haber obtenido el menor error, se llama a la función subpixel comentada anteriormente. Por ultimo 
+se almacena el valor en la posición correspondiente a los pixeles de la imagen.
+'''
 def getDisparityMap(left, right):
 
     h, w = left.shape
@@ -140,7 +164,7 @@ def getDisparityMap(left, right):
 
 # -------------------------------------------------- ------------------------------------------------------
 
-
+# Recorre todo el mapa de disparidad y va obteniendo la profundidad correspondiente a cada pixel.
 def reproject_image_to_3D(disparity, T_1):
     height, width = disparity.shape
     points_3D = np.zeros((height, width, 3), dtype=np.float32)
@@ -171,14 +195,15 @@ def reproject_image_to_3D(disparity, T_1):
 
 # -------------------------------------------------- ------------------------------------------------------
 
-
+# Esta función se encarga simplemente de la generación de una ventana con un visor 3D de la nube de puntos 
+# que se ha generado con la función anterior y ha sido guardada en el archivo PLY.
 def render(path):
     pcd = o3d.io.read_point_cloud(path)
     o3d.visualization.draw_geometries([pcd])
 
 # -------------------------------------------------- ------------------------------------------------------
 
-
+# Filtra la imagen en escala de grises, reduciendo así el ruido de la imagen mediante el uso del tamaño del bloque(ksize). 
 def median_blur(image, ksize):
     if ksize % 2 == 0:
         raise ValueError("El tamanyo del bloque debe ser un numero impar.")
@@ -199,7 +224,11 @@ def median_blur(image, ksize):
 # -------------------------------------------------- ------------------------------------------------------
 
 
-# Guarda la nube de puntos 3D con los colores en un archivo PLY
+# Guarda la nube de puntos 3D con los colores en un archivo PLY. 
+# 
+# Utilizando la matriz de calibración(matriz K), el mapa de disparidad y el valor 
+# RGB de cada posición, se guardan en un archivo PLY de forma conjunta. Para que 
+# luego se puedan utilizar en el visor 3D.
 def save_point_cloud(filename, disparity, colors):
     K = np.load('Etapa7/matriz_K.npy')
     
@@ -240,7 +269,16 @@ end_header
         
 # -------------------------------------------------- ------------------------------------------------------
 
+'''
+Esta función es el cuerpo principal del programa y se encarga al principio de 
+cargar las imágenes. Luego redimensiona las imágenes si son grandes, para así 
+reducir el tiempo de computo. Tras haber redimensionado las imágenes se obtiene 
+el mapa de disparidad, el cual se filtra y se obtienen sus colores(valores RGB). 
+Después se encarga de guardar el mapa de disparidad en un archivo PLY y genera 
+una imagen con formato de mapa de calor, Por ultimo renderiza en el visor 3D el
+mapa de disparidad con los colores que se acababa de guardar en un archivo PLY.
 
+'''
 def main():
     # Carga las imagenes
     left = Image.open("data/left5.png")
@@ -255,9 +293,6 @@ def main():
     # Convierte las imagenes a escala de grises
     left_gray = np.array(left.convert('L'))
     right_gray = np.array(right.convert('L'))
-
-    # Compara las distintas funciones de coste(SAD, SSD y NCC) en un pixel aleatorio
-    compare_random_pixel(left_gray, right_gray)
     
     # Obtiene la disparidad a partir de la imagen izquierda y derecha
     start = time.time()
@@ -274,7 +309,9 @@ def main():
     # Crea la carpeta en caso de no existir para almacenar el archivo de la nube de puntos y el mapa de calor correspondiente en formato PNG
     if not os.path.exists("Etapa7/output"):
         os.mkdir("Etapa7/output")
-        
+    
+    
+    compare_random_pixel(left_gray, right_gray) # Compara las distintas funciones de coste(SAD, SSD y NCC) en un pixel aleatorio
     save_point_cloud(f"Etapa7/output/BM_python.ply", disparity, colors) # Guarda la nube de puntos en un archivo PLY
     plt.imsave(f"Etapa7/output/BM_python.png", disparity, cmap='jet') # Guarda el mapa de calor de la imagen en base a la nube de puntos
     
