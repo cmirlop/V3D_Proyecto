@@ -1,6 +1,7 @@
 from Fase_1 import calib
 from Fase_1 import factorizacion_P
 from Fase_3 import matriz_fundamental_F
+from Fase_3 import epipolares
 from Fase_4 import matriz_esencial_E
 from Fase_5 import Fase_5A
 import matplotlib.pyplot as plt
@@ -74,7 +75,12 @@ np.save('matriz_E.npy', E)
 
 #-------------------------------------------------------------------------------------
 
-R, t = Fase_5A.rectificacion_Esteroscipica_calibrada(E, puntos1, puntos2, K, inliers)
+epipolares.dibujar_epipolar(imagen1, imagen2, F)
+epipolares.dibujar_epipolar_inv(imagen1, imagen2, F)
+
+#-------------------------------------------------------------------------------------
+
+'''R, t = Fase_5A.rectificacion_Esteroscipica_calibrada(E, puntos1, puntos2, K, inliers)
 print("Matriz de rotación R:\n", R)
 print("Vector de traslación t:\n", t)
 
@@ -91,4 +97,4 @@ combined_image = np.hstack((pts_left_rect, pts_right_rect))
 # Visualización mejorada
 plt.figure(figsize=(15, 5))
 plt.imshow(combined_image)
-plt.show()
+plt.show()'''
