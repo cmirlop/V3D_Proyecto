@@ -25,7 +25,7 @@ def harris(imagen, sigma):
 def puntos_harris(C, umbral):
     #umbral = umbral * C.max()
 
-    puntos_locales = (C == maximum_filter(C, 7))
+    puntos_locales = (C == maximum_filter(C, size=7))
     detectados = (C > umbral) & puntos_locales
     y, x = np.nonzero(detectados)
 
