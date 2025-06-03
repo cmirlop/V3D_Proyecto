@@ -59,6 +59,7 @@ def homografias_rectificadas(puntos_izq, puntos_dcha, punto, F):
     
     # Sacamos la homografia de la imagen izquierda
     Hl = Hinf @ T_rot @ T_trans
+    Hl = Hl / Hl[2, 2]
 
     # Transformamos las imagenes
     puntos_izq = np.hstack((puntos_izq, np.ones((puntos_izq.shape[0], 1))))
@@ -93,6 +94,7 @@ def homografias_rectificadas(puntos_izq, puntos_dcha, punto, F):
     
     # Sacamos la homografia de la imagen derecha
     Hr = A @ Hl @ M
+    Hr = Hr / Hr[2, 2]
     return Hl, Hr
 
 def aplicar_homografia(imagen, H):

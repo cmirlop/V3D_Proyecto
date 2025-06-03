@@ -5,7 +5,7 @@ from scipy.ndimage import convolve, gaussian_filter, maximum_filter
 from scipy.signal import convolve2d
 
 def harris(imagen, sigma):
-    sobel = np.array([[-1, 0, 1]])
+    sobel = np.array([[-1, 0, 1]],dtype=np.float32)
     #gaussian = int(2 * np.ceil(2 * sigma) + 1)
 
     Iu = convolve(imagen, sobel, mode='reflect')
@@ -23,30 +23,34 @@ def harris(imagen, sigma):
     return C
 
 def puntos_harris(C, umbral):
-    #umbral = umbral * C.max()
+    umbral = umbral * C.max()
 
-    puntos_locales = (C == maximum_filter(C, size=7))
+    puntos_locales = (C == maximum_filter(C, size=3))
     detectados = (C > umbral) & puntos_locales
     y, x = np.nonzero(detectados)
 
     return np.array([x, y]).T
 
-def extraer_parches(imagen, puntos, tamano_parche=11):
+def extraer_parches(imagen, puntos, tamano_parche=21):
     mitad = tamano_parche // 2
     relleno = np.pad(imagen, mitad, mode='reflect')
     parches = []
 
     for x, y in puntos:
-        x += mitad
-        y += mitad
-        parche = relleno[y - mitad:y + mitad + 1, x - mitad:x + mitad + 1]
+        x_pad = x + mitad
+        y_pad = y + mitad
+        parche = relleno[y_pad - mitad:y_pad + mitad + 1, x_pad - mitad:x_pad + mitad + 1]
         parche = parche - np.mean(parche)
-        parche = parche / np.linalg.norm(parche)
+        norma = np.linalg.norm(parche)
+        if norma > 1e-6:
+            parche /= norma
+        else:
+            parche = np.zeros_like(parche)
         parches.append(parche)
 
     return np.array(parches)
 
-def comparar_parches(parches1, parches2, ratio=0.75):
+def comparar_parches(parches1, parches2, ratio=0.95):
     coincidencias = []
     parches1 = parches1.reshape(parches1.shape[0], -1)
     parches2 = parches2.reshape(parches2.shape[0], -1)
@@ -82,12 +86,14 @@ def dibujar_coincidencias(imagen1, imagen2, puntos1, puntos2):
 
 def normalizar_puntos(puntos):
     media = np.mean(puntos, axis=0)
-    std = np.std(puntos, axis=0)
-    escala = np.sqrt(2) / std
+    puntos_centrados = puntos - media
+    dist = np.sqrt(np.sum(puntos_centrados**2, axis=1))
+    mean_dist = np.mean(dist)
+    escala = np.sqrt(2) / mean_dist
 
     T = np.array([
-        [escala[0], 0, -escala[0] * media[0]],
-        [0, escala[1], -escala[1] * media[1]],
+        [escala, 0, -escala * media[0]],
+        [0, escala, -escala * media[1]],
         [0, 0, 1]
     ])
 
@@ -129,7 +135,10 @@ def error_geometrico(puntos1, puntos2, F):
 
     return d1 + d2
 
-def ransac(puntos1, puntos2, iteraciones=1000, umbral=1.0):
+def ransac(puntos1, puntos2, iteraciones=1000, umbral=1.0, semilla=None):
+    if semilla is not None:
+        np.random.seed(semilla)
+    
     mejor_F = None
     mejor_inliers = []
 

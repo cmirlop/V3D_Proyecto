@@ -50,3 +50,12 @@ def dibujar_epipolar_inv(imagen_izquierda, imagen_derecha, F):
 
     fig.canvas.mpl_connect('button_press_event', on_click)
     plt.show()
+
+def validar_epipolaridad(F, puntos1, puntos2):
+    errores = []
+    for p1, p2 in zip(puntos1, puntos2):
+        x1 = np.array([p1[0], p1[1], 1.0])
+        x2 = np.array([p2[0], p2[1], 1.0])
+        error = abs(x2 @ F @ x1)
+        errores.append(error)
+    return np.array(errores)
