@@ -59,8 +59,8 @@ y se obtienen las coincidencias. Por último, se aplica el algoritmo RANSAC para
 fundamental F y se visualizan los inliers encontrados.
 '''
 # Carga las imágenes y las convierte a escala de grises
-imagen1 = Image.open("Fase_7/data/izq2.png").convert('L')
-imagen2 = Image.open("Fase_7/data/der2.png").convert('L')
+imagen1 = Image.open("Fase_7/data/izq4.png").convert('L')
+imagen2 = Image.open("Fase_7/data/der4.png").convert('L')
 
 # Redimensiona las imágenes si son grandes para reducir el tiempo de computo
 if imagen1.width != 450 or imagen1.height != 375:
@@ -74,13 +74,13 @@ imagen2 = np.array(imagen2)
 
 
 # Obtiene los puntos de interés utilizando el detector de Harris
-C1 = matriz_fundamental_F.harris(imagen1, 1)
-puntos_izq_harris = matriz_fundamental_F.puntos_harris(C1, 0.08)
-C2 = matriz_fundamental_F.harris(imagen2, 1)
-puntos_der_harris = matriz_fundamental_F.puntos_harris(C2, 0.08)
+C1 = matriz_fundamental_F.harris(imagen1, 0.3)
+puntos_izq_harris = matriz_fundamental_F.puntos_harris(C1, 0.95)
+C2 = matriz_fundamental_F.harris(imagen2, 0.3)
+puntos_der_harris = matriz_fundamental_F.puntos_harris(C2, 0.95)
 
 # Ordena los puntos de interés por la respuesta del detector de Harris y selecciona los N mejores
-N = 500
+N = 7000
 respuestas = C1[puntos_izq_harris[:,1], puntos_izq_harris[:,0]]
 idx_orden = np.argsort(respuestas)[::-1][:N]
 puntos_izq_harris = puntos_izq_harris[idx_orden]
@@ -94,11 +94,11 @@ matriz_fundamental_F.mostrar_puntos(imagen1, puntos_izq_harris)
 matriz_fundamental_F.mostrar_puntos(imagen2, puntos_der_harris)
 
 # Extrae los parches de las imágenes correspondientes a los puntos de interés
-parches_izq = matriz_fundamental_F.extraer_parches(imagen1, puntos_izq_harris, tamano_parche=31)
-parches_der = matriz_fundamental_F.extraer_parches(imagen2, puntos_der_harris, tamano_parche=31)
+parches_izq = matriz_fundamental_F.extraer_parches(imagen1, puntos_izq_harris, tamano_parche=21)
+parches_der = matriz_fundamental_F.extraer_parches(imagen2, puntos_der_harris, tamano_parche=21)
 
 # Compara los parches de las dos imágenes y obtiene las coincidencias
-coincidencias = matriz_fundamental_F.comparar_parches(parches_izq, parches_der, ratio=0.7)
+coincidencias = matriz_fundamental_F.comparar_parches(parches_izq, parches_der, ratio=0.8)
 coincidencias = np.array(coincidencias)
 
 # Se sacan los puntos de la imágen izquierda y derecha respectivamente
@@ -108,9 +108,9 @@ puntos_der_match = puntos_der_harris[coincidencias[:, 1]]
 matriz_fundamental_F.dibujar_coincidencias(imagen1, imagen2, puntos_izq_harris[coincidencias[:, 0]], puntos_der_harris[coincidencias[:, 1]])
 
 # Se aplica el algoritmo RANSAC para obtener la matriz fundamental F y los inliers
-F, inliers = matriz_fundamental_F.ransac(puntos_izq_match, puntos_der_match, iteraciones=1500, umbral=1, semilla=33)
+F, inliers = matriz_fundamental_F.ransac(puntos_izq_match, puntos_der_match, iteraciones=4000, umbral=0.5, semilla=33)
 print("Matriz fundamental F:\n", F)
-
+print("Rango F: ", np.linalg.matrix_rank(F))
 # Visualiza los inliers encontrados en las imágenes
 matriz_fundamental_F.visualizar_inliers(imagen1, imagen2, puntos_izq_match, puntos_der_match, inliers)
 
@@ -146,6 +146,9 @@ puntos_der_inliers = puntos_der_match[inliers]
 errores = epipolares.validar_epipolaridad(F, puntos_izq_inliers, puntos_der_inliers)
 print("Errores de epipolaridad:", errores)
 
+epipolares.dibujar_epipolar_esencial(imagen1, imagen2, E, K)
+epipolares.dibujar_epipolar_esencial_inv(imagen1, imagen2, E, K)
+
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
@@ -155,8 +158,8 @@ de interés. Luego se aplican las homografías a las imágenes originales para o
 las imágenes rectificadas y se muestran individualmente y luego en conjunto.
 '''
 # Carga las imágenes y las convierte a RGB para luego escalarlas
-imagen1 = Image.open("Fase_7/data/izq2.png").convert('RGB')
-imagen2 = Image.open("Fase_7/data/der2.png").convert('RGB')
+imagen1 = Image.open("Fase_7/data/izq4.png").convert('RGB')
+imagen2 = Image.open("Fase_7/data/der4.png").convert('RGB')
 
 if imagen1.width != 450 or imagen1.height != 375:
     nuevo_tamano = (450, 375)
@@ -164,7 +167,7 @@ if imagen1.width != 450 or imagen1.height != 375:
     imagen2 = imagen2.resize(nuevo_tamano)
 
 # Se obtienen las homografías rectificadas Hl y Hr a partir de los puntos de interés
-Hl, Hr = rectificacion.homografias_rectificadas(puntos_izq_match, puntos_der_match, puntos_izq_match[puntos_izq_match.shape[0] // 2], F)
+Hl, Hr = rectificacion.homografias_rectificadas(puntos_izq_match, puntos_der_match, (imagen1.width / 2, imagen1.height / 2), F)
 print("Homografía izquierda Hl:\n", Hl)
 print("Homografía derecha Hr:\n", Hr)
 
