@@ -3,7 +3,7 @@ from scipy.ndimage import map_coordinates
 from PIL import Image, ImageDraw
 
 def epipolo(F):
-    _, _, Vt = np.linalg.svd(F)
+    _, _, Vt = np.linalg.svd(F.T)
     e = Vt[-1]
     return e / e[2]
 
@@ -29,6 +29,7 @@ def homografias_rectificadas(puntos_izq, puntos_dcha, punto, F):
 
     # Obtenemos el epipolo izquierdo
     e_izq = epipolo(F)
+    print("Valor comprobación = ", F@e_izq)
 
     # Obtenemos la matriz M
     M = matriz_M(F)
@@ -99,7 +100,56 @@ def homografias_rectificadas(puntos_izq, puntos_dcha, punto, F):
 
 def aplicar_homografia(imagen, H):
     imagen = np.array(imagen)
+    h, w = imagen.shape[:2]
 
+    # Paso 1: Calcular el bounding box de la imagen transformada
+    esquinas = np.array([
+        [0, 0, 1],
+        [w, 0, 1],
+        [0, h, 1],
+        [w, h, 1]
+    ]).T  # 3x4
+
+    esquinas_transformadas = H @ esquinas
+    esquinas_transformadas /= esquinas_transformadas[2]
+
+    min_x = np.floor(np.min(esquinas_transformadas[0])).astype(int)
+    max_x = np.ceil(np.max(esquinas_transformadas[0])).astype(int)
+    min_y = np.floor(np.min(esquinas_transformadas[1])).astype(int)
+    max_y = np.ceil(np.max(esquinas_transformadas[1])).astype(int)
+
+    new_w = max_x - min_x
+    new_h = max_y - min_y
+
+    # Paso 2: Compensar la traslación con una matriz de desplazamiento
+    T = np.array([
+        [1, 0, -min_x],
+        [0, 1, -min_y],
+        [0, 0, 1]
+    ])
+    H_corr = T @ H  # Homografía corregida
+
+    # Paso 3: Crear malla de coordenadas en la imagen destino
+    x_coords, y_coords = np.meshgrid(np.arange(new_w), np.arange(new_h))
+    homog_coords = np.stack([x_coords.ravel(), y_coords.ravel(), np.ones_like(x_coords.ravel())])
+
+    H_inv = np.linalg.inv(H_corr)
+    coords_fuente = H_inv @ homog_coords
+    coords_fuente /= coords_fuente[2]
+
+    x_src = coords_fuente[0].reshape(new_h, new_w)
+    y_src = coords_fuente[1].reshape(new_h, new_w)
+
+    # Paso 4: Interpolación por canales
+    imagen_rectificada = np.zeros((new_h, new_w, 3), dtype=np.uint8)
+    for i in range(3):  # R, G, B
+        imagen_rectificada[:, :, i] = map_coordinates(imagen[:, :, i], [y_src, x_src], order=1, mode='constant', cval=0)
+
+    return Image.fromarray(imagen_rectificada)
+
+'''def aplicar_homografia(imagen, H):
+    imagen = np.array(imagen)
+    H = H / H[2, 2]
     h_salida, w_salida = imagen.shape[:2]
 
     # Crear una malla de coordenadas
@@ -118,7 +168,7 @@ def aplicar_homografia(imagen, H):
     for i in range(3):
         imagen_rectificada[:, :, i] = map_coordinates(imagen[:, :, i], [y_iniciales, x_iniciales], order=1, mode='constant', cval=0)
 
-    return Image.fromarray(imagen_rectificada)
+    return Image.fromarray(imagen_rectificada)'''
 
 def dibujar_rectificaciones(imagen_izq, imagen_dcha):
     h = min(imagen_izq.height, imagen_dcha.height)

@@ -7,11 +7,11 @@ def calibracion(rutas_imagenes, tamano_tablero=(7, 5), tamano_cuadro=31, homogra
     puntos_mundo = []
     for ruta in rutas_imagenes:
         imagen = Image.open(ruta).convert('RGB')
-        '''
-        if imagen.width != 450 or imagen.height != 375:
+
+        '''if imagen.width != 450 or imagen.height != 375:
             nuevo_tamano = (450, 375)
-            imagen = imagen.resize(nuevo_tamano)
-        '''
+            imagen = imagen.resize(nuevo_tamano)'''
+
         imagen = np.array(imagen)[:, :, ::-1]
 
         gris = cv2.cvtColor(imagen, cv2.COLOR_BGR2GRAY)

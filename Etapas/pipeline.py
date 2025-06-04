@@ -16,13 +16,14 @@ tamano_tablero = (7, 5)
 tamano_cuadro = 31
 homografias = []
 
+
 '''
 Esta parte se encarga al principio de cargar las imágenes para la calibración. Luego 
 llama a las diferentes partes de la calibración, la cual se realiza mediante el algoritmo
 de Z. Zhang. Lo que se obtiene de esta calibración es directaente la matriz de parámetros
 intrínsecos K y de esta se puede sacar la matriz de proyección de la cámara P.
 '''
-'''# Utiliza las imágenes de calibración y los parámetros para calcular la matriz de calibración K
+# Utiliza las imágenes de calibración y los parámetros para calcular la matriz de calibración K
 K = calib.calibracion(rutas_imagenes, tamano_tablero, tamano_cuadro, homografias)
 print("Matriz de calibración K:", K)
 
@@ -32,14 +33,14 @@ homografias = np.array(homografias)
 # Usamos la primera homografía para calcular la matriz de proyección P
 P = calib.matriz_p(K, homografias[0])
 print("Matriz de proyección P:", P)
-'''
+
 #------------------------------------------------------------------------------------
 '''
 Esta parte se encarga de volver a sacar la matriz K para poder compararla con la anterior y
 la matriz R de rotación. Para ello se utiliza la función de factorización RQ, además se saca
 también el vector de traslación t.
 '''
-'''# Se utiliza la P anterior para factorizarla y obtener K, R y t para su comprobación
+# Se utiliza la P anterior para factorizarla y obtener K, R y t para su comprobación
 K, R = factorizacion_P.factorizacion_RQ(P)
 
 print("Matriz K de parámetros intrínsecos:", K)
@@ -47,7 +48,7 @@ print("\nMatriz de Rotación R:", R)
 
 t = factorizacion_P.taslacion(P, K)
 print("\nVector de Traslación t:", t)
-'''
+
 #------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
@@ -58,9 +59,9 @@ correspondientes a los puntos de interés. Después se comparan los parches de l
 y se obtienen las coincidencias. Por último, se aplica el algoritmo RANSAC para obtener la matriz 
 fundamental F y se visualizan los inliers encontrados.
 '''
-'''# Carga las imágenes y las convierte a escala de grises
-imagen1 = Image.open("Fase_7/data/izq3.png").convert('L')
-imagen2 = Image.open("Fase_7/data/der3.png").convert('L')
+# Carga las imágenes y las convierte a escala de grises
+imagen1 = Image.open("Fase_7/data/izq4.png").convert('L')
+imagen2 = Image.open("Fase_7/data/der4.png").convert('L')
 
 # Redimensiona las imágenes si son grandes para reducir el tiempo de computo
 if imagen1.width != 450 or imagen1.height != 375:
@@ -74,13 +75,13 @@ imagen2 = np.array(imagen2)
 
 
 # Obtiene los puntos de interés utilizando el detector de Harris
-C1 = matriz_fundamental_F.harris(imagen1, 1)
-puntos_izq_harris = matriz_fundamental_F.puntos_harris(C1, 0.08)
-C2 = matriz_fundamental_F.harris(imagen2, 1)
-puntos_der_harris = matriz_fundamental_F.puntos_harris(C2, 0.08)
+C1 = matriz_fundamental_F.harris(imagen1, 0.3)
+puntos_izq_harris = matriz_fundamental_F.puntos_harris(C1, 0.95)
+C2 = matriz_fundamental_F.harris(imagen2, 0.3)
+puntos_der_harris = matriz_fundamental_F.puntos_harris(C2, 0.95)
 
 # Ordena los puntos de interés por la respuesta del detector de Harris y selecciona los N mejores
-N = 500
+N = 7000
 respuestas = C1[puntos_izq_harris[:,1], puntos_izq_harris[:,0]]
 idx_orden = np.argsort(respuestas)[::-1][:N]
 puntos_izq_harris = puntos_izq_harris[idx_orden]
@@ -94,11 +95,11 @@ matriz_fundamental_F.mostrar_puntos(imagen1, puntos_izq_harris)
 matriz_fundamental_F.mostrar_puntos(imagen2, puntos_der_harris)
 
 # Extrae los parches de las imágenes correspondientes a los puntos de interés
-parches_izq = matriz_fundamental_F.extraer_parches(imagen1, puntos_izq_harris, tamano_parche=31)
-parches_der = matriz_fundamental_F.extraer_parches(imagen2, puntos_der_harris, tamano_parche=31)
+parches_izq = matriz_fundamental_F.extraer_parches(imagen1, puntos_izq_harris, tamano_parche=21)
+parches_der = matriz_fundamental_F.extraer_parches(imagen2, puntos_der_harris, tamano_parche=21)
 
 # Compara los parches de las dos imágenes y obtiene las coincidencias
-coincidencias = matriz_fundamental_F.comparar_parches(parches_izq, parches_der, ratio=0.7)
+coincidencias = matriz_fundamental_F.comparar_parches(parches_izq, parches_der, ratio=0.8)
 coincidencias = np.array(coincidencias)
 
 # Se sacan los puntos de la imágen izquierda y derecha respectivamente
@@ -108,27 +109,27 @@ puntos_der_match = puntos_der_harris[coincidencias[:, 1]]
 matriz_fundamental_F.dibujar_coincidencias(imagen1, imagen2, puntos_izq_harris[coincidencias[:, 0]], puntos_der_harris[coincidencias[:, 1]])
 
 # Se aplica el algoritmo RANSAC para obtener la matriz fundamental F y los inliers
-F, inliers = matriz_fundamental_F.ransac(puntos_izq_match, puntos_der_match, iteraciones=1500, umbral=1, semilla=33)
+F, inliers = matriz_fundamental_F.ransac(puntos_izq_match, puntos_der_match, iteraciones=4000, umbral=0.5, semilla=33)
 print("Matriz fundamental F:\n", F)
-
+print("Rango F: ", np.linalg.matrix_rank(F))
 # Visualiza los inliers encontrados en las imágenes
 matriz_fundamental_F.visualizar_inliers(imagen1, imagen2, puntos_izq_match, puntos_der_match, inliers)
 
 # Guarda la matriz fundamental F en un archivo .npy
 np.save('matriz_F.npy', F)
-'''
+
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga de utilizar la matriz fundamental F y la matriz de calibración K
 para calcular la matriz esencial E.
 '''
-'''# Utiliza ls matrices fundamental F y K para calcular la matriz esencial E
+# Utiliza ls matrices fundamental F y K para calcular la matriz esencial E
 E = matriz_esencial_E.matriz_esencial_E(F, K)
 print("Matriz esencial E:\n", E)
 
 # Guarda la matriz esencial E en un archivo .npy
 np.save('matriz_E.npy', E)
-'''
+
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga de mostrar las líneas epipolares en las imágenes utilizando la matriz fundamental F.
@@ -138,14 +139,17 @@ Una vez se cierra la ventana, emerge otra para hacer lo mismo pero esta ves sele
 de la derecha y mostrando las líneas epipolares en la imagen de la izquierda.
 '''
 
-'''epipolares.dibujar_epipolar(imagen1, imagen2, F)
+epipolares.dibujar_epipolar(imagen1, imagen2, F)
 epipolares.dibujar_epipolar_inv(imagen1, imagen2, F)
 # Solo los inliers
 puntos_izq_inliers = puntos_izq_match[inliers]
 puntos_der_inliers = puntos_der_match[inliers]
 errores = epipolares.validar_epipolaridad(F, puntos_izq_inliers, puntos_der_inliers)
 print("Errores de epipolaridad:", errores)
-'''
+
+epipolares.dibujar_epipolar_esencial(imagen1, imagen2, E, K)
+epipolares.dibujar_epipolar_esencial_inv(imagen1, imagen2, E, K)
+
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
@@ -154,9 +158,9 @@ las imágenes se obtienen las homografías rectificadas Hl y Hr a partir de los 
 de interés. Luego se aplican las homografías a las imágenes originales para obtener 
 las imágenes rectificadas y se muestran individualmente y luego en conjunto.
 '''
-'''# Carga las imágenes y las convierte a RGB para luego escalarlas
-imagen1 = Image.open("Fase_7/data/izq3.png").convert('RGB')
-imagen2 = Image.open("Fase_7/data/der3.png").convert('RGB')
+# Carga las imágenes y las convierte a RGB para luego escalarlas
+imagen1 = Image.open("Fase_7/data/izq4.png").convert('RGB')
+imagen2 = Image.open("Fase_7/data/der4.png").convert('RGB')
 
 if imagen1.width != 450 or imagen1.height != 375:
     nuevo_tamano = (450, 375)
@@ -164,7 +168,7 @@ if imagen1.width != 450 or imagen1.height != 375:
     imagen2 = imagen2.resize(nuevo_tamano)
 
 # Se obtienen las homografías rectificadas Hl y Hr a partir de los puntos de interés
-Hl, Hr = rectificacion.homografias_rectificadas(puntos_izq_match, puntos_der_match, puntos_izq_match[puntos_izq_match.shape[0] // 2], F)
+Hl, Hr = rectificacion.homografias_rectificadas(puntos_izq_match, puntos_der_match, (imagen1.width / 2, imagen1.height / 2), F)
 print("Homografía izquierda Hl:\n", Hl)
 print("Homografía derecha Hr:\n", Hr)
 
@@ -177,7 +181,7 @@ imagen_rectificada_dcha.show()
 # Se muestran las imágenes rectificadas en conjunto
 imagenes_rectificadas = rectificacion.dibujar_rectificaciones(imagen_rectificada_izq, imagen_rectificada_dcha)
 imagenes_rectificadas.show()
-'''
+
 #--------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
