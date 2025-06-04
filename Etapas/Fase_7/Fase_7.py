@@ -10,7 +10,7 @@ Al principio del código se han declarado unas variables globales las cuales se 
 la implementación del algoritmo Block Matching. Pero para facilitar su ajuste se han dejado 
 al principio. Estas variables son:'''
 block_size = 15 # Es el tamaño del bloque y corresponde al área de pixel que se van a analizar. Contra menor se a el valor se obtiene mas detalle, pero a su vez también se obtiene mas ruido.
-max_disp = 64 # Es la disparidad máxima y sirve para indicar el rango de comparación con los pixeles de alrededor del bloque. 
+max_disp = 32 # Es la disparidad máxima y sirve para indicar el rango de comparación con los pixeles de alrededor del bloque. 
 activate_subpixel = True # Permite activar la interpolación subpixel
 block_half = int(block_size/2) # Es un atajo para centrar obtener el centro del bloque.
 
@@ -73,7 +73,7 @@ def compare_random_pixel(left, right, saveRoute):
 
     random_x = np.random.randint(0, w)
     random_y = np.random.randint(0, h)
-    random_x = 350
+    random_x = 290
     random_y = int(h/2)
 
     errorsSAD=[]
@@ -163,7 +163,7 @@ def getDisparityMap(left, right):
                     best_error = error
                     best_d = dx
                     
-            if activate_subpixel:
+            if activate_subpixel and best_d != None:
                 best_d += getBestSubpixel(best_d, errors)
 
             disp_map[y, x] = best_d
