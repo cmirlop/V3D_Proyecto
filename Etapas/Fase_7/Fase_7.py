@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import open3d as o3d
+import cv2 as cv
 
 '''Para el desarrollo del código correspondiente de la generación de la nube de puntos 3D. 
 Al principio del código se han declarado unas variables globales las cuales se utilizan en 
@@ -72,21 +73,31 @@ def compare_random_pixel(left, right, saveRoute):
 
     random_x = np.random.randint(0, w)
     random_y = np.random.randint(0, h)
+    random_x = 350
+    random_y = int(h/2)
 
     errorsSAD=[]
     errorsSSD=[]
     errorsNCC=[]
 
-    for x in range(0, w):
-        px_left = left[random_y,random_x]
-        px_right = right[random_y,x]
+    block_left = getROI(random_y, random_x, left)
+    cv.imwrite(saveRoute+"block_left.png", block_left)
 
-        error = fdc(px_left, px_right, 1) # Funcion de coste(0-SAD,1-SSD,2-NCC)
+    bloques = []
+
+    for x in range(max_disp):
+        block_right = getROI(random_y, random_x, right, x)
+        bloques.append(block_right)
+
+        error = fdc(block_left, block_right, 1) # Funcion de coste(0-SAD,1-SSD,2-NCC)
         errorsSAD.append(error)
-        error = fdc(px_left, px_right, 0)
+        error = fdc(block_left, block_right, 0)
         errorsSSD.append(error)
-        error = fdc(px_left, px_right, 2)
+        error = fdc(block_left, block_right, 2)
         errorsNCC.append(error)
+
+    concat_bloques = cv.hconcat(bloques)
+    cv.imwrite(saveRoute+"concat_bloques.png", concat_bloques)
 
     # Crea la figura y los ejes
     fig = plt.figure(dpi=100)
@@ -105,7 +116,7 @@ def compare_random_pixel(left, right, saveRoute):
     plt.show()
 
     # Guarda la grafica
-    fig.savefig(saveRoute, dpi=300)
+    fig.savefig(saveRoute+"SADvsSSDvsNCC.png", dpi=300)
 
 # -------------------------------------------------- ------------------------------------------------------
 
