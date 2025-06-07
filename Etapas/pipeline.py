@@ -207,12 +207,7 @@ left = Image.open("Fase_7/data/im2.png")
 right = Image.open("Fase_7/data/im6.png")
 
 '''
-'''# Reduce el tamaño de las imagenes en caso de tener una anchura mayor a 800 para reducir tiempo de computo
-if left.width != 450 and left.height != 375:
-    new_size = (450, 375)
-    left = left.resize(new_size)
-    right = right.resize(new_size)
-'''
+
 # Convierte las imagenes a escala de grises
 left_gray = np.array(left.convert('L'))
 right_gray = np.array(right.convert('L'))

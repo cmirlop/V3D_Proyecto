@@ -156,7 +156,7 @@ def getDisparityMap(left, right):
                     errors.append(None)
                     continue
 
-                error = fdc(block_prev, block_next, 2) # Funcion de coste(0-SAD,1-SSD,2-NCC)
+                error = fdc(block_prev, block_next, 1) # Funcion de coste(0-SAD,1-SSD,2-NCC)
                 errors.append(error)
 
                 if error < best_error:
