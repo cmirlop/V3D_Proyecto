@@ -24,7 +24,7 @@ llama a las diferentes partes de la calibración, la cual se realiza mediante el
 de Z. Zhang. Lo que se obtiene de esta calibración es directaente la matriz de parámetros
 intrínsecos K y de esta se puede sacar la matriz de proyección de la cámara P.
 '''
-'''# Utiliza las imágenes de calibración y los parámetros para calcular la matriz de calibración K
+# Utiliza las imágenes de calibración y los parámetros para calcular la matriz de calibración K
 K = calib.calibracion(rutas_imagenes, tamano_tablero, tamano_cuadro, homografias)
 print("Matriz de calibración K:", K)
 
@@ -34,14 +34,14 @@ homografias = np.array(homografias)
 # Usamos la primera homografía para calcular la matriz de proyección P
 P = calib.matriz_p(K, homografias[0])
 print("Matriz de proyección P:", P)
-'''
+
 #------------------------------------------------------------------------------------
 '''
 Esta parte se encarga de volver a sacar la matriz K para poder compararla con la anterior y
 la matriz R de rotación. Para ello se utiliza la función de factorización RQ, además se saca
 también el vector de traslación t.
 '''
-'''# Se utiliza la P anterior para factorizarla y obtener K, R y t para su comprobación
+# Se utiliza la P anterior para factorizarla y obtener K, R y t para su comprobación
 K, R = factorizacion_P.factorizacion_RQ(P)
 
 print("Matriz K de parámetros intrínsecos:", K)
@@ -49,7 +49,7 @@ print("\nMatriz de Rotación R:", R)
 
 t = factorizacion_P.taslacion(P, K)
 print("\nVector de Traslación t:", t)
-'''
+
 #------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
@@ -60,7 +60,7 @@ correspondientes a los puntos de interés. Después se comparan los parches de l
 y se obtienen las coincidencias. Por último, se aplica el algoritmo RANSAC para obtener la matriz 
 fundamental F y se visualizan los inliers encontrados.
 '''
-'''# Carga las imágenes y las convierte a escala de grises
+# Carga las imágenes y las convierte a escala de grises
 imagen1 = Image.open("Fase_7/data/izq4.png").convert('L')
 imagen2 = Image.open("Fase_7/data/der4.png").convert('L')
 
@@ -117,19 +117,20 @@ print("Rango F: ", np.linalg.matrix_rank(F))
 matriz_fundamental_F.visualizar_inliers(imagen1, imagen2, puntos_izq_match, puntos_der_match, inliers)
 
 # Guarda la matriz fundamental F en un archivo .npy
-np.save('matriz_F.npy', F)'''
+np.save('matriz_F.npy', F)
+
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga de utilizar la matriz fundamental F y la matriz de calibración K
 para calcular la matriz esencial E.
 '''
-'''# Utiliza ls matrices fundamental F y K para calcular la matriz esencial E
+# Utiliza ls matrices fundamental F y K para calcular la matriz esencial E
 E = matriz_esencial_E.matriz_esencial_E(F, K)
 print("Matriz esencial E:\n", E)
 
 # Guarda la matriz esencial E en un archivo .npy
 np.save('matriz_E.npy', E)
-'''
+
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga de mostrar las líneas epipolares en las imágenes utilizando la matriz fundamental F.
@@ -139,7 +140,7 @@ Una vez se cierra la ventana, emerge otra para hacer lo mismo pero esta ves sele
 de la derecha y mostrando las líneas epipolares en la imagen de la izquierda.
 '''
 
-'''epipolares.dibujar_epipolar(imagen1, imagen2, F)
+epipolares.dibujar_epipolar(imagen1, imagen2, F)
 epipolares.dibujar_epipolar_inv(imagen1, imagen2, F)
 # Solo los inliers
 puntos_izq_inliers = puntos_izq_match[inliers]
@@ -149,7 +150,7 @@ print("Errores de epipolaridad:", errores)
 
 epipolares.dibujar_epipolar_esencial(imagen1, imagen2, E, K)
 epipolares.dibujar_epipolar_esencial_inv(imagen1, imagen2, E, K)
- '''
+
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
@@ -158,7 +159,7 @@ las imágenes se obtienen las homografías rectificadas Hl y Hr a partir de los 
 de interés. Luego se aplican las homografías a las imágenes originales para obtener 
 las imágenes rectificadas y se muestran individualmente y luego en conjunto.
 '''
-'''# Carga las imágenes y las convierte a RGB para luego escalarlas
+# Carga las imágenes y las convierte a RGB para luego escalarlas
 imagen1 = Image.open("Fase_7/data/izq4.png").convert('RGB')
 imagen2 = Image.open("Fase_7/data/der4.png").convert('RGB')
 
@@ -185,7 +186,6 @@ imagen_rectificada_dcha.save("imagen_rectificada_dcha.png")
 imagenes_rectificadas = rectificacion.dibujar_rectificaciones(imagen_rectificada_izq, imagen_rectificada_dcha)
 imagenes_rectificadas.show()
 imagen_rectificada_dcha.save("imagenes_rectificadas.png")
-'''
 #--------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
