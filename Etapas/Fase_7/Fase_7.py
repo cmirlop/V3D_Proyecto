@@ -9,7 +9,7 @@ import cv2 as cv
 Al principio del código se han declarado unas variables globales las cuales se utilizan en 
 la implementación del algoritmo Block Matching. Pero para facilitar su ajuste se han dejado 
 al principio. Estas variables son:'''
-block_size = 15 # Es el tamaño del bloque y corresponde al área de pixel que se van a analizar. Contra menor se a el valor se obtiene mas detalle, pero a su vez también se obtiene mas ruido.
+block_size = 64 # Es el tamaño del bloque y corresponde al área de pixel que se van a analizar. Contra menor se a el valor se obtiene mas detalle, pero a su vez también se obtiene mas ruido.
 max_disp = 32 # Es la disparidad máxima y sirve para indicar el rango de comparación con los pixeles de alrededor del bloque. 
 activate_subpixel = True # Permite activar la interpolación subpixel
 block_half = int(block_size/2) # Es un atajo para centrar obtener el centro del bloque.
@@ -73,7 +73,7 @@ def compare_random_pixel(left, right, saveRoute):
 
     random_x = np.random.randint(0, w)
     random_y = np.random.randint(0, h)
-    random_x = 290
+    random_x = 300
     random_y = int(h/2)
 
     errorsSAD=[]
@@ -156,7 +156,7 @@ def getDisparityMap(left, right):
                     errors.append(None)
                     continue
 
-                error = fdc(block_prev, block_next, 1) # Funcion de coste(0-SAD,1-SSD,2-NCC)
+                error = fdc(block_prev, block_next, 2) # Funcion de coste(0-SAD,1-SSD,2-NCC)
                 errors.append(error)
 
                 if error < best_error:

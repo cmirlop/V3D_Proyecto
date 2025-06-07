@@ -60,7 +60,6 @@ correspondientes a los puntos de interés. Después se comparan los parches de l
 y se obtienen las coincidencias. Por último, se aplica el algoritmo RANSAC para obtener la matriz 
 fundamental F y se visualizan los inliers encontrados.
 '''
-'''
 '''# Carga las imágenes y las convierte a escala de grises
 imagen1 = Image.open("Fase_7/data/izq4.png").convert('L')
 imagen2 = Image.open("Fase_7/data/der4.png").convert('L')
@@ -118,7 +117,7 @@ print("Rango F: ", np.linalg.matrix_rank(F))
 matriz_fundamental_F.visualizar_inliers(imagen1, imagen2, puntos_izq_match, puntos_der_match, inliers)
 
 # Guarda la matriz fundamental F en un archivo .npy
-np.save('matriz_F.npy', F)
+np.save('matriz_F.npy', F)'''
 #-------------------------------------------------------------------------------------
 '''
 Esta parte se encarga de utilizar la matriz fundamental F y la matriz de calibración K
@@ -159,7 +158,6 @@ las imágenes se obtienen las homografías rectificadas Hl y Hr a partir de los 
 de interés. Luego se aplican las homografías a las imágenes originales para obtener 
 las imágenes rectificadas y se muestran individualmente y luego en conjunto.
 '''
-'''
 '''# Carga las imágenes y las convierte a RGB para luego escalarlas
 imagen1 = Image.open("Fase_7/data/izq4.png").convert('RGB')
 imagen2 = Image.open("Fase_7/data/der4.png").convert('RGB')
@@ -187,6 +185,7 @@ imagen_rectificada_dcha.save("imagen_rectificada_dcha.png")
 imagenes_rectificadas = rectificacion.dibujar_rectificaciones(imagen_rectificada_izq, imagen_rectificada_dcha)
 imagenes_rectificadas.show()
 imagen_rectificada_dcha.save("imagenes_rectificadas.png")
+'''
 #--------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
@@ -197,9 +196,17 @@ archivo PLY y genera una imagen con formato de mapa de calor, Por ultimo renderi
 en el visor 3D el mapa de disparidad con los colores que se acababa de guardar en un archivo PLY.
 '''
 # Carga las imagenes
+
+# Mando
 left = Image.open("imagen_rectificada_izq.png")
 right = Image.open("imagen_rectificada_dcha.png")
 
+'''
+# Osito
+left = Image.open("Fase_7/data/im2.png")
+right = Image.open("Fase_7/data/im6.png")
+
+'''
 '''# Reduce el tamaño de las imagenes en caso de tener una anchura mayor a 800 para reducir tiempo de computo
 if left.width != 450 and left.height != 375:
     new_size = (450, 375)
@@ -209,6 +216,33 @@ if left.width != 450 and left.height != 375:
 # Convierte las imagenes a escala de grises
 left_gray = np.array(left.convert('L'))
 right_gray = np.array(right.convert('L'))
+
+#left_gray = cv.convertScaleAbs(left_gray, alpha=2, beta=0)
+#right_gray = cv.convertScaleAbs(right_gray, alpha=2, beta=0)
+
+# Comprueba las dimensiones y en caso de no encagar extrae un ROI
+if left_gray.shape != right_gray.shape:
+    x, y, w, h = 50, 50, 400, 300  # Ajusta según la región deseada
+
+    left_array = np.array(left)
+    right_array = np.array(right)
+
+
+    # Extraer ROI usando NumPy
+    l_roi = left_array[y:y+h, x:x+w, :]
+    r_roi = right_array[y:y+h, x:x+w, :]
+
+    # Convertir de nuevo a imagen PIL
+    left = Image.fromarray(l_roi)
+    right = Image.fromarray(r_roi)
+
+    # Guarda las nuevas imagenes
+    left.save("left_roi.png")
+    right.save("right_roi.png")
+
+    # Convierte las imagenes a escala de grises
+    left_gray = np.array(left.convert('L'))
+    right_gray = np.array(right.convert('L'))
 
 # Crea la carpeta en caso de no existir para almacenar el archivo de la nube de puntos y el mapa de calor correspondiente en formato PNG
 if not os.path.exists("Fase_7/output"):
