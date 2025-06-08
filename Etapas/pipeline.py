@@ -12,7 +12,7 @@ import numpy as np
 import cv2 as cv
 from PIL import Image
 
-rutas_imagenes = ["Fase_1/data/my_frame-00.jpg", "Fase_1/data/my_frame-01.jpg", "Fase_1/data/my_frame-02.jpg", "Fase_1/data/my_frame-03.jpg", "Fase_1/data/my_frame-04.jpg", "Fase_1/data/my_frame-05.jpg", "Fase_1/data/my_frame-07.jpg"]
+rutas_imagenes = ["data/my_frame-00.jpg", "data/my_frame-01.jpg", "data/my_frame-02.jpg", "data/my_frame-03.jpg", "data/my_frame-04.jpg", "data/my_frame-05.jpg", "data/my_frame-07.jpg"]
 tamano_tablero = (7, 5)
 tamano_cuadro = 31
 homografias = []
@@ -24,6 +24,10 @@ llama a las diferentes partes de la calibración, la cual se realiza mediante el
 de Z. Zhang. Lo que se obtiene de esta calibración es directaente la matriz de parámetros
 intrínsecos K y de esta se puede sacar la matriz de proyección de la cámara P.
 '''
+# Crea la carpeta en caso de no existir para almacenar los resultados
+if not os.path.exists("output"):
+    os.mkdir("output")
+
 # Utiliza las imágenes de calibración y los parámetros para calcular la matriz de calibración K
 K = calib.calibracion(rutas_imagenes, tamano_tablero, tamano_cuadro, homografias)
 print("Matriz de calibración K:", K)
@@ -61,8 +65,8 @@ y se obtienen las coincidencias. Por último, se aplica el algoritmo RANSAC para
 fundamental F y se visualizan los inliers encontrados.
 '''
 # Carga las imágenes y las convierte a escala de grises
-imagen1 = Image.open("Fase_7/data/izq4.png").convert('L')
-imagen2 = Image.open("Fase_7/data/der4.png").convert('L')
+imagen1 = Image.open("data/izq4.png").convert('L')
+imagen2 = Image.open("data/der4.png").convert('L')
 
 # Redimensiona las imágenes si son grandes para reducir el tiempo de computo
 if imagen1.width != 450 or imagen1.height != 375:
@@ -117,7 +121,7 @@ print("Rango F: ", np.linalg.matrix_rank(F))
 matriz_fundamental_F.visualizar_inliers(imagen1, imagen2, puntos_izq_match, puntos_der_match, inliers)
 
 # Guarda la matriz fundamental F en un archivo .npy
-np.save('matriz_F.npy', F)
+np.save('output/matriz_F.npy', F)
 
 #-------------------------------------------------------------------------------------
 '''
@@ -129,7 +133,7 @@ E = matriz_esencial_E.matriz_esencial_E(F, K)
 print("Matriz esencial E:\n", E)
 
 # Guarda la matriz esencial E en un archivo .npy
-np.save('matriz_E.npy', E)
+np.save('output/matriz_E.npy', E)
 
 #-------------------------------------------------------------------------------------
 '''
@@ -160,8 +164,8 @@ de interés. Luego se aplican las homografías a las imágenes originales para o
 las imágenes rectificadas y se muestran individualmente y luego en conjunto.
 '''
 # Carga las imágenes y las convierte a RGB para luego escalarlas
-imagen1 = Image.open("Fase_7/data/izq4.png").convert('RGB')
-imagen2 = Image.open("Fase_7/data/der4.png").convert('RGB')
+imagen1 = Image.open("data/izq4.png").convert('RGB')
+imagen2 = Image.open("data/der4.png").convert('RGB')
 
 if imagen1.width != 450 or imagen1.height != 375:
     nuevo_tamano = (450, 375)
@@ -178,14 +182,14 @@ imagen_rectificada_izq = rectificacion.aplicar_homografia(imagen1, Hl)
 imagen_rectificada_izq.show()
 imagen_rectificada_dcha = rectificacion.aplicar_homografia(imagen2, Hr)
 imagen_rectificada_dcha.show()
-imagen_rectificada_izq.save("imagen_rectificada_izq.png")
-imagen_rectificada_dcha.save("imagen_rectificada_dcha.png")
+imagen_rectificada_izq.save("output/imagen_rectificada_izq.png")
+imagen_rectificada_dcha.save("output/imagen_rectificada_dcha.png")
 
 
 # Se muestran las imágenes rectificadas en conjunto
 imagenes_rectificadas = rectificacion.dibujar_rectificaciones(imagen_rectificada_izq, imagen_rectificada_dcha)
 imagenes_rectificadas.show()
-imagen_rectificada_dcha.save("imagenes_rectificadas.png")
+
 #--------------------------------------------------------------------------------------
 '''
 Esta parte se encarga al principio de cargar las imágenes. Luego las redimensiona 
@@ -198,13 +202,13 @@ en el visor 3D el mapa de disparidad con los colores que se acababa de guardar e
 # Carga las imagenes
 
 # Mando
-left = Image.open("imagen_rectificada_izq.png")
-right = Image.open("imagen_rectificada_dcha.png")
+left = Image.open("output/imagen_rectificada_izq.png")
+right = Image.open("output/imagen_rectificada_dcha.png")
 
 '''
 # Osito
-left = Image.open("Fase_7/data/im2.png")
-right = Image.open("Fase_7/data/im6.png")
+left = Image.open("data/im2.png")
+right = Image.open("data/im6.png")
 
 '''
 
@@ -212,8 +216,6 @@ right = Image.open("Fase_7/data/im6.png")
 left_gray = np.array(left.convert('L'))
 right_gray = np.array(right.convert('L'))
 
-#left_gray = cv.convertScaleAbs(left_gray, alpha=2, beta=0)
-#right_gray = cv.convertScaleAbs(right_gray, alpha=2, beta=0)
 
 # Comprueba las dimensiones y en caso de no encagar extrae un ROI
 if left_gray.shape != right_gray.shape:
@@ -232,19 +234,15 @@ if left_gray.shape != right_gray.shape:
     right = Image.fromarray(r_roi)
 
     # Guarda las nuevas imagenes
-    left.save("left_roi.png")
-    right.save("right_roi.png")
+    left.save("output/left_roi.png")
+    right.save("output/right_roi.png")
 
     # Convierte las imagenes a escala de grises
     left_gray = np.array(left.convert('L'))
     right_gray = np.array(right.convert('L'))
 
-# Crea la carpeta en caso de no existir para almacenar el archivo de la nube de puntos y el mapa de calor correspondiente en formato PNG
-if not os.path.exists("Fase_7/output"):
-    os.mkdir("Fase_7/output")
 
-
-Fase_7.compare_random_pixel(left_gray, right_gray, "Fase_7/output/") # Compara las distintas funciones de coste(SAD, SSD y NCC) en un pixel aleatorio
+Fase_7.compare_random_pixel(left_gray, right_gray, "output/") # Compara las distintas funciones de coste(SAD, SSD y NCC) en un pixel aleatorio
 
 
 # Obtiene la disparidad a partir de la imagen izquierda y derecha
@@ -259,8 +257,8 @@ colors = np.array(left)
 # Estadistica de tiempo de computo
 print(f"Tiempo de generacion del mapa de disparidad: {end-start:.2f}s")
 
-Fase_7.save_point_cloud(f"Fase_7/output/BM_python.ply", disparity, colors) # Guarda la nube de puntos en un archivo PLY
-plt.imsave(f"Fase_7/output/BM_python.png", disparity, cmap='jet') # Guarda el mapa de calor de la imagen en base a la nube de puntos
+Fase_7.save_point_cloud(f"output/BM_python.ply", disparity, colors) # Guarda la nube de puntos en un archivo PLY
+plt.imsave(f"output/BM_python.png", disparity, cmap='jet') # Guarda el mapa de calor de la imagen en base a la nube de puntos
 
 # Muestra el resultado de la nube de puntos
-Fase_7.render("Fase_7/output/BM_python.ply")
+Fase_7.render("output/BM_python.ply")

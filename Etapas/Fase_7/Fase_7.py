@@ -238,7 +238,7 @@ def median_blur(image, ksize):
 # RGB de cada posición, se guardan en un archivo PLY de forma conjunta. Para que 
 # luego se puedan utilizar en el visor 3D.
 def save_point_cloud(filename, disparity, colors):
-    K = np.load('matriz_K.npy')
+    K = np.load('output/matriz_K.npy')
     
     cx = K[0,2]
     cx_p = -cx

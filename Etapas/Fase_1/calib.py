@@ -153,7 +153,7 @@ def matriz_k(B):
         [0.0, k22, k23],
         [0.0, 0.0, k33]
     ])   
-    np.save('matriz_K.npy', K)
+    np.save('output/matriz_K.npy', K)
     return K
 
 def matriz_p(K, h):
@@ -178,5 +178,5 @@ def matriz_p(K, h):
     print("R:", R)
 
     P = K @ np.column_stack((R, t))
-    np.save('matriz_P.npy', P)
+    np.save('output/matriz_P.npy', P)
     return P

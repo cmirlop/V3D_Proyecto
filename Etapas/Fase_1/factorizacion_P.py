@@ -18,12 +18,12 @@ def factorizacion_RQ(P):
 
     U = M @ Q.T
     
-    np.save('matriz_K.npy', U)
-    np.save('matriz_R.npy', Q)
+    np.save('output/matriz_K.npy', U)
+    np.save('output/matriz_R.npy', Q)
 
     return U, Q
 
 def taslacion(P, K):
     t = np.linalg.inv(K) @ P[:, -1]   
-    np.save('vector_t.npy', t)
+    np.save('output/vector_t.npy', t)
     return t
